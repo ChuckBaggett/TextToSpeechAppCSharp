@@ -22,133 +22,108 @@ namespace TextToSpeechApp
 
         private void InitializeComponent()
         {
-            btnSelectFile = new Button();
-            txtEditor = new TextBox();
-            btnSelectFolder = new Button();
-            lblSelectedFolder = new Label();
-            cmbVoiceSelection = new ComboBox();
-            btnStartConversion = new Button();
-            lblStatus = new Label();
-            lblSpeakerSelection = new Label();
-            cmbSpeakerSelection = new ComboBox();
-            SuspendLayout();
+            this.btnSelectFile = new System.Windows.Forms.Button();
+            this.txtEditor = new System.Windows.Forms.TextBox();
+            this.btnSelectFolder = new System.Windows.Forms.Button();
+            this.lblSelectedFolder = new System.Windows.Forms.Label();
+            this.cmbVoiceSelection = new System.Windows.Forms.ComboBox();
+            this.btnStartConversion = new System.Windows.Forms.Button();
+            this.lblStatus = new System.Windows.Forms.Label();
+            this.SuspendLayout();
             // 
             // btnSelectFile
             // 
-            btnSelectFile.Location = new Point(12, 12);
-            btnSelectFile.Name = "btnSelectFile";
-            btnSelectFile.Size = new Size(120, 23);
-            btnSelectFile.TabIndex = 0;
-            btnSelectFile.Text = "Select Text File";
-            btnSelectFile.UseVisualStyleBackColor = true;
-            btnSelectFile.Click += btnSelectFile_Click;
+            this.btnSelectFile.Location = new System.Drawing.Point(12, 12);
+            this.btnSelectFile.Name = "btnSelectFile";
+            this.btnSelectFile.Size = new System.Drawing.Size(120, 23);
+            this.btnSelectFile.TabIndex = 0;
+            this.btnSelectFile.Text = "Select Text File";
+            this.btnSelectFile.UseVisualStyleBackColor = true;
+            this.btnSelectFile.Click += new System.EventHandler(this.btnSelectFile_Click);
             // 
             // txtEditor
             // 
-            txtEditor.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            txtEditor.Location = new Point(12, 54);
-            txtEditor.Multiline = true;
-            txtEditor.Name = "txtEditor";
-            txtEditor.ScrollBars = ScrollBars.Both;
-            txtEditor.Size = new Size(748, 306);
-            txtEditor.TabIndex = 1;
+            this.txtEditor.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtEditor.Location = new System.Drawing.Point(12, 41);
+            this.txtEditor.Multiline = true;
+            this.txtEditor.Name = "txtEditor";
+            this.txtEditor.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.txtEditor.Size = new System.Drawing.Size(760, 350);
+            this.txtEditor.TabIndex = 1;
             // 
             // btnSelectFolder
             // 
-            btnSelectFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnSelectFolder.Location = new Point(12, 397);
-            btnSelectFolder.Name = "btnSelectFolder";
-            btnSelectFolder.Size = new Size(120, 23);
-            btnSelectFolder.TabIndex = 2;
-            btnSelectFolder.Text = "Select Output Folder";
-            btnSelectFolder.UseVisualStyleBackColor = true;
-            btnSelectFolder.Click += btnSelectFolder_Click;
+            this.btnSelectFolder.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnSelectFolder.Location = new System.Drawing.Point(12, 397);
+            this.btnSelectFolder.Name = "btnSelectFolder";
+            this.btnSelectFolder.Size = new System.Drawing.Size(120, 23);
+            this.btnSelectFolder.TabIndex = 2;
+            this.btnSelectFolder.Text = "Select Output Folder";
+            this.btnSelectFolder.UseVisualStyleBackColor = true;
+            this.btnSelectFolder.Click += new System.EventHandler(this.btnSelectFolder_Click);
             // 
             // lblSelectedFolder
             // 
-            lblSelectedFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            lblSelectedFolder.AutoEllipsis = true;
-            lblSelectedFolder.Location = new Point(138, 397);
-            lblSelectedFolder.Name = "lblSelectedFolder";
-            lblSelectedFolder.Size = new Size(634, 23);
-            lblSelectedFolder.TabIndex = 3;
-            lblSelectedFolder.Text = "Output Folder: (None selected)";
-            lblSelectedFolder.TextAlign = ContentAlignment.MiddleLeft;
+            this.lblSelectedFolder.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.lblSelectedFolder.AutoEllipsis = true;
+            this.lblSelectedFolder.Location = new System.Drawing.Point(138, 397);
+            this.lblSelectedFolder.Name = "lblSelectedFolder";
+            this.lblSelectedFolder.Size = new System.Drawing.Size(634, 23);
+            this.lblSelectedFolder.TabIndex = 3;
+            this.lblSelectedFolder.Text = "Output Folder: (None selected)";
+            this.lblSelectedFolder.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // cmbVoiceSelection
             // 
-            cmbVoiceSelection.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            cmbVoiceSelection.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbVoiceSelection.FormattingEnabled = true;
-            cmbVoiceSelection.Location = new Point(96, 513);
-            cmbVoiceSelection.Name = "cmbVoiceSelection";
-            cmbVoiceSelection.Size = new Size(250, 23);
-            cmbVoiceSelection.TabIndex = 4;
+            this.cmbVoiceSelection.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.cmbVoiceSelection.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbVoiceSelection.FormattingEnabled = true;
+            this.cmbVoiceSelection.Location = new System.Drawing.Point(12, 426);
+            this.cmbVoiceSelection.Name = "cmbVoiceSelection";
+            this.cmbVoiceSelection.Size = new System.Drawing.Size(250, 23);
+            this.cmbVoiceSelection.TabIndex = 4;
             // 
             // btnStartConversion
             // 
-            btnStartConversion.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnStartConversion.Font = new Font("Segoe UI", 12F);
-            btnStartConversion.Location = new Point(606, 513);
-            btnStartConversion.Name = "btnStartConversion";
-            btnStartConversion.Size = new Size(154, 42);
-            btnStartConversion.TabIndex = 5;
-            btnStartConversion.Text = "Convert to Speech";
-            btnStartConversion.UseVisualStyleBackColor = true;
-            btnStartConversion.Click += btnStartConversion_Click;
+            this.btnStartConversion.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnStartConversion.Location = new System.Drawing.Point(652, 426);
+            this.btnStartConversion.Name = "btnStartConversion";
+            this.btnStartConversion.Size = new System.Drawing.Size(120, 23);
+            this.btnStartConversion.TabIndex = 5;
+            this.btnStartConversion.Text = "Convert to Speech";
+            this.btnStartConversion.UseVisualStyleBackColor = true;
+            this.btnStartConversion.Click += new System.EventHandler(this.btnStartConversion_Click);
             // 
             // lblStatus
             // 
-            lblStatus.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            lblStatus.Location = new Point(12, 581);
-            lblStatus.Name = "lblStatus";
-            lblStatus.Size = new Size(760, 23);
-            lblStatus.TabIndex = 6;
-            lblStatus.Text = "Status: Ready";
-            lblStatus.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // lblSpeakerSelection
-            // 
-            lblSpeakerSelection.AutoSize = true;
-            lblSpeakerSelection.Font = new Font("Segoe UI", 12F);
-            lblSpeakerSelection.Location = new Point(12, 515);
-            lblSpeakerSelection.Name = "lblSpeakerSelection";
-            lblSpeakerSelection.Size = new Size(66, 21);
-            lblSpeakerSelection.TabIndex = 7;
-            lblSpeakerSelection.Text = "Speaker";
-            // 
-            // cmbSpeakerSelection
-            // 
-            cmbSpeakerSelection.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbSpeakerSelection.FormattingEnabled = true;
-            cmbSpeakerSelection.Location = new Point(377, 513);
-            cmbSpeakerSelection.Name = "cmbSpeakerSelection";
-            cmbSpeakerSelection.Size = new Size(121, 23);
-            cmbSpeakerSelection.TabIndex = 8;
-            cmbSpeakerSelection.Visible = false;
+            this.lblStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.lblStatus.Location = new System.Drawing.Point(12, 458);
+            this.lblStatus.Name = "lblStatus";
+            this.lblStatus.Size = new System.Drawing.Size(760, 23);
+            this.lblStatus.TabIndex = 6;
+            this.lblStatus.Text = "Status: Ready";
+            this.lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // Form1
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(784, 613);
-            Controls.Add(cmbSpeakerSelection);
-            Controls.Add(lblSpeakerSelection);
-            Controls.Add(lblStatus);
-            Controls.Add(btnStartConversion);
-            Controls.Add(cmbVoiceSelection);
-            Controls.Add(lblSelectedFolder);
-            Controls.Add(btnSelectFolder);
-            Controls.Add(txtEditor);
-            Controls.Add(btnSelectFile);
-            Name = "Form1";
-            Text = "Text to Speech App";
-            ResumeLayout(false);
-            PerformLayout();
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(784, 490);
+            this.Controls.Add(this.lblStatus);
+            this.Controls.Add(this.btnStartConversion);
+            this.Controls.Add(this.cmbVoiceSelection);
+            this.Controls.Add(this.lblSelectedFolder);
+            this.Controls.Add(this.btnSelectFolder);
+            this.Controls.Add(this.txtEditor);
+            this.Controls.Add(this.btnSelectFile);
+            this.Name = "Form1";
+            this.Text = "Text to Speech App";
+            this.ResumeLayout(false);
+            this.PerformLayout();
         }
-        private Label label1;
-        private ComboBox comboBox1;
-        private Label lblSpeakerSelection;
-        private ComboBox cmbSpeakerSelection;
     }
 }

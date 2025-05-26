@@ -106,7 +106,7 @@ namespace TextToSpeechApp
                 Application.DoEvents();
                 PiperConfiguration config = new PiperConfiguration()
                 {
-                    ExecutablePath = piperExecutablePath,
+                    ExecutableLocation = piperExecutablePath, // Changed from ExecutablePath
                     Model = currentVoiceModel 
                 };
                 piperProvider = new PiperProvider(config); 
@@ -213,7 +213,7 @@ namespace TextToSpeechApp
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: "{line.Substring(0, Math.Min(line.Length, 20))}..."";
+                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: "{line.Substring(0, Math.Min(line.Length, 20)) + "..."}"";
                 Application.DoEvents();
 
                 try

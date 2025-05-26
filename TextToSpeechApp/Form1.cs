@@ -16,8 +16,8 @@ namespace TextToSpeechApp
         private VoiceModel? currentVoiceModel;
         private string selectedOutputPath = string.Empty;
         private string piperBaseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TextToSpeechApp", "piper_tts");
-        private string piperInstallationPath = string.Empty; 
-        private string piperExecutablePath = string.Empty; 
+        private string piperInstallationPath = string.Empty;
+        private string piperExecutablePath = string.Empty;
         private string modelsCommonPath = string.Empty;
         private Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
 
@@ -30,137 +30,145 @@ namespace TextToSpeechApp
 
 
         private async void Form1_Load(object sender, EventArgs e)
-{
-    this.UseWaitCursor = true;
-    lblStatus.Text = "Initializing TTS engine...";
-    Application.DoEvents();
-
-    try
-    {
-        Directory.CreateDirectory(piperBaseDirectory);
-        piperInstallationPath = Path.Combine(piperBaseDirectory, "piper");
-        piperExecutablePath = Path.Combine(piperInstallationPath, PiperDownloader.PiperExecutable);
-        modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
-        Directory.CreateDirectory(modelsCommonPath);
-
-        lblStatus.Text = "Checking for Piper executable...";
-        Application.DoEvents();
-        if (!File.Exists(piperExecutablePath))
         {
-            lblStatus.Text = "Downloading Piper TTS...";
+            this.UseWaitCursor = true;
+            lblStatus.Text = "Initializing TTS engine...";
             Application.DoEvents();
 
-            Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
-            await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory));
-
-            if (!File.Exists(piperExecutablePath))
+            try
             {
-                throw new FileNotFoundException("Piper executable not found after download and extraction.", piperExecutablePath);
-            }
-            lblStatus.Text = "Piper executable downloaded and extracted.";
-            Application.DoEvents();
-        }
-        else
-        {
-            lblStatus.Text = "Piper executable found.";
-            Application.DoEvents();
-        }
+                Directory.CreateDirectory(piperBaseDirectory);
+                piperInstallationPath = Path.Combine(piperBaseDirectory, "piper");
+                piperExecutablePath = Path.Combine(piperInstallationPath, PiperDownloader.PiperExecutable);
+                modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
+                Directory.CreateDirectory(modelsCommonPath);
 
-        lblStatus.Text = "Fetching available voices...";
-        Application.DoEvents();
-        Dictionary<string, VoiceModel>? allVoices = null;
-        try
-        {
-            allVoices = await PiperDownloader.GetHuggingFaceModelList();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to fetch voice list: {ex.Message}", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            currentVoiceModel = null;
-        }
-
-        if (allVoices == null || allVoices.Count == 0)
-        {
-            if (currentVoiceModel == null) {
-                MessageBox.Show("No voices found or could not load voice list.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            currentVoiceModel = null;
-        }
-        else
-        {
-            cmbVoiceSelection.Items.Clear();
-            foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Name))
-            {
-                cmbVoiceSelection.Items.Add(voice.Key); // TEMPORARY: Using Key for now
-            }
-            // cmbVoiceSelection.DisplayMember = "Key"; // TEMPORARY if adding string keys
-
-            string preferredDefaultModelKey = "en_US-lessac-medium";
-            VoiceModel? voiceToLoadAsDefault = allVoices.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
-
-            if (voiceToLoadAsDefault == null && allVoices.Values.Any())
-            {
-                voiceToLoadAsDefault = allVoices.Values.OrderBy(v => v.Name).First();
-            }
-
-            if (voiceToLoadAsDefault != null)
-            {
-                currentVoiceModel = voiceToLoadAsDefault;
-                if (cmbVoiceSelection.Items.Contains(currentVoiceModel.Key)) // TEMPORARY check
-                {
-                    cmbVoiceSelection.SelectedItem = currentVoiceModel.Key; // TEMPORARY
-                }
-
-                lblStatus.Text = $"Loading default voice: {currentVoiceModel.Name}...";
+                lblStatus.Text = "Checking for Piper executable...";
                 Application.DoEvents();
-
-                var modelDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
+                if (!File.Exists(piperExecutablePath))
                 {
-                    lblStatus.Text = $"Downloading default voice: {currentVoiceModel.Name}...";
+                    lblStatus.Text = "Downloading Piper TTS...";
                     Application.DoEvents();
-                    await currentVoiceModel.DownloadModel(modelsCommonPath);
 
-                    var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                    if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
+                    Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
+                    await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory));
+
+                    if (!File.Exists(piperExecutablePath))
                     {
-                         throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}.");
+                        throw new FileNotFoundException("Piper executable not found after download and extraction.", piperExecutablePath);
                     }
-                    lblStatus.Text = $"Voice {currentVoiceModel.Name} downloaded.";
+                    lblStatus.Text = "Piper executable downloaded and extracted.";
                     Application.DoEvents();
                 }
                 else
                 {
-                    lblStatus.Text = $"Loading voice {currentVoiceModel.Name} from disk...";
+                    lblStatus.Text = "Piper executable found.";
                     Application.DoEvents();
-                    currentVoiceModel = await VoiceModel.LoadModel(modelDirectory);
                 }
+
+                lblStatus.Text = "Fetching available voices...";
+                Application.DoEvents();
+                Dictionary<string, VoiceModel>? allVoices = null;
+                try
+                {
+                    allVoices = await PiperDownloader.GetHuggingFaceModelList();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to fetch voice list: {ex.Message}", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    currentVoiceModel = null;
+                }
+
+                if (allVoices == null || allVoices.Count == 0)
+                {
+                    if (currentVoiceModel == null)
+                    {
+                        MessageBox.Show("No voices found or could not load voice list.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    currentVoiceModel = null;
+                }
+                else
+                {
+                    cmbVoiceSelection.Items.Clear();
+                    foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Name))
+                    {
+                        cmbVoiceSelection.Items.Add(voice.Key); // TEMPORARY: Using Key for now
+                    }
+                    cmbVoiceSelection.DisplayMember = "DisplayName";
+
+                    string preferredDefaultModelKey = "en_US-lessac-medium";
+                    VoiceModel? voiceToLoadAsDefault = allVoices.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
+
+                    if (voiceToLoadAsDefault == null && allVoices.Values.Any())
+                    {
+                        voiceToLoadAsDefault = allVoices.Values.OrderBy(v => v.Name).First();
+                    }
+
+                    if (voiceToLoadAsDefault != null)
+                    {
+                        currentVoiceModel = voiceToLoadAsDefault;
+                        if (currentVoiceModel != null)
+                        {
+                            foreach (object item in cmbVoiceSelection.Items)
+                            {
+                                if (item is VoiceViewModel viewModel && viewModel.Model.Key == currentVoiceModel.Key)
+                                {
+                                    cmbVoiceSelection.SelectedItem = viewModel;
+                                    break;
+                                }
+                            }
+                        }
+
+                        lblStatus.Text = $"Loading default voice: {currentVoiceModel.Name}...";
+                        Application.DoEvents();
+
+                        var modelDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
+                        if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
+                        {
+                            lblStatus.Text = $"Downloading default voice: {currentVoiceModel.Name}...";
+                            Application.DoEvents();
+                            await currentVoiceModel.DownloadModel(modelsCommonPath);
+
+                            var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
+                            if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
+                            {
+                                throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}.");
+                            }
+                            lblStatus.Text = $"Voice {currentVoiceModel.Name} downloaded.";
+                            Application.DoEvents();
+                        }
+                        else
+                        {
+                            lblStatus.Text = $"Loading voice {currentVoiceModel.Name} from disk...";
+                            Application.DoEvents();
+                            currentVoiceModel = await VoiceModel.LoadModel(modelDirectory);
+                        }
+                    }
+                    else
+                    {
+                        currentVoiceModel = null;
+                        lblStatus.Text = "No suitable default voice found.";
+                        MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+
+                UpdateSpeakerSelectionUI(currentVoiceModel);
+                await ReinitializePiperProvider();
             }
-            else
+            catch (Exception ex)
             {
-                currentVoiceModel = null;
-                lblStatus.Text = "No suitable default voice found.";
-                MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lblStatus.Text = $"Error initializing TTS: {ex.Message}";
+                MessageBox.Show($"Detailed Error: {ex.ToString()}", "TTS Initialization Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                btnStartConversion.Enabled = false;
+                cmbVoiceSelection.Enabled = false;
+                if (cmbSpeakerSelection != null) cmbSpeakerSelection.Enabled = false;
+            }
+            finally
+            {
+                this.UseWaitCursor = false;
+                cmbVoiceSelection.Enabled = cmbVoiceSelection.Items.Count > 0;
             }
         }
-
-        UpdateSpeakerSelectionUI(currentVoiceModel);
-        await ReinitializePiperProvider();
-    }
-    catch (Exception ex)
-    {
-        lblStatus.Text = $"Error initializing TTS: {ex.Message}";
-        MessageBox.Show($"Detailed Error: {ex.ToString()}", "TTS Initialization Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        btnStartConversion.Enabled = false;
-        cmbVoiceSelection.Enabled = false;
-        if (cmbSpeakerSelection != null) cmbSpeakerSelection.Enabled = false;
-    }
-    finally
-    {
-        this.UseWaitCursor = false;
-        cmbVoiceSelection.Enabled = cmbVoiceSelection.Items.Count > 0;
-    }
-}
         private void UpdateSpeakerSelectionUI(VoiceModel? voice)
         {
             cmbSpeakerSelection.Items.Clear();
@@ -185,9 +193,9 @@ namespace TextToSpeechApp
                 }
             }
         }
-        
 
-private async Task ReinitializePiperProvider()
+
+        private async Task ReinitializePiperProvider()
         {
             if (currentVoiceModel == null)
             {
@@ -254,7 +262,7 @@ private async Task ReinitializePiperProvider()
             try
             {
                 Directory.CreateDirectory(piperBaseDirectory);
-                piperInstallationPath = Path.Combine(piperBaseDirectory, "piper"); 
+                piperInstallationPath = Path.Combine(piperBaseDirectory, "piper");
                 piperExecutablePath = Path.Combine(piperInstallationPath, PiperDownloader.PiperExecutable); // Use PiperDownloader.PiperExecutable
                 modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
                 Directory.CreateDirectory(modelsCommonPath);
@@ -264,11 +272,11 @@ private async Task ReinitializePiperProvider()
                 if (!File.Exists(piperExecutablePath))
                 {
                     // Directory.CreateDirectory(piperInstallationPath); // piperBaseDirectory is passed to ExtractPiper which should handle subfolder creation
-                    lblStatus.Text = "Downloading Piper TTS..."; 
+                    lblStatus.Text = "Downloading Piper TTS...";
                     Application.DoEvents();
-                    
+
                     Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
-                    await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory)); 
+                    await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory));
 
                     if (!File.Exists(piperExecutablePath))
                     {
@@ -293,31 +301,32 @@ private async Task ReinitializePiperProvider()
                 catch (Exception exVoiceList) // Renamed ex to exVoiceList for clarity
                 {
                     MessageBox.Show($"Failed to fetch voice list: {exVoiceList.Message}", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    currentVoiceModel = null; 
+                    currentVoiceModel = null;
                 }
 
                 if (allVoices == null || allVoices.Count == 0)
                 {
-                    if (currentVoiceModel == null) { // Only show message if the try-catch also failed
+                    if (currentVoiceModel == null)
+                    { // Only show message if the try-catch also failed
                         MessageBox.Show("No voices found or could not load voice list.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
-                    currentVoiceModel = null; 
+                    currentVoiceModel = null;
                 }
                 else
                 {
                     cmbVoiceSelection.Items.Clear();
                     // Ensure VoiceModel has a Name property suitable for display, or use Key.
                     // Adding the VoiceModel object directly to Items is good.
-                    foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Name)) 
+                    foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Key))
                     {
-                        cmbVoiceSelection.Items.Add(voice);
+                        cmbVoiceSelection.Items.Add(new VoiceViewModel(voice));
                     }
-                    cmbVoiceSelection.DisplayMember = "Name"; 
+                    cmbVoiceSelection.DisplayMember = "Name";
 
-                    string preferredDefaultModelKey = "en_US-lessac-medium"; 
+                    string preferredDefaultModelKey = "en_US-lessac-medium";
                     VoiceModel? voiceToLoadAsDefault = allVoices.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
 
-                    if (voiceToLoadAsDefault == null && allVoices.Values.Any()) 
+                    if (voiceToLoadAsDefault == null && allVoices.Values.Any())
                     {
                         voiceToLoadAsDefault = allVoices.Values.OrderBy(v => v.Name).First();
                     }
@@ -326,7 +335,7 @@ private async Task ReinitializePiperProvider()
                     {
                         // Set currentVoiceModel to the one we intend to load as default.
                         // This assignment is crucial before it's used by the load/download logic.
-                        currentVoiceModel = voiceToLoadAsDefault; 
+                        currentVoiceModel = voiceToLoadAsDefault;
                         cmbVoiceSelection.SelectedItem = currentVoiceModel; // Set dropdown selection
 
                         lblStatus.Text = $"Loading default voice: {currentVoiceModel.Name}...";
@@ -337,12 +346,12 @@ private async Task ReinitializePiperProvider()
                         {
                             lblStatus.Text = $"Downloading default voice: {currentVoiceModel.Name}...";
                             Application.DoEvents();
-                            await currentVoiceModel.DownloadModel(modelsCommonPath); 
-                            
+                            await currentVoiceModel.DownloadModel(modelsCommonPath);
+
                             var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                            if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json"))) 
+                            if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
                             {
-                                 throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}. Expected model.json at {Path.Combine(expectedModelSpecificDirectory, "model.json")}");
+                                throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}. Expected model.json at {Path.Combine(expectedModelSpecificDirectory, "model.json")}");
                             }
                             lblStatus.Text = $"Voice {currentVoiceModel.Name} downloaded.";
                             Application.DoEvents();
@@ -352,12 +361,12 @@ private async Task ReinitializePiperProvider()
                             lblStatus.Text = $"Loading voice {currentVoiceModel.Name} from disk...";
                             Application.DoEvents();
                             // LoadModel returns a new, fully initialized VoiceModel instance.
-                            currentVoiceModel = await VoiceModel.LoadModel(modelDirectory); 
+                            currentVoiceModel = await VoiceModel.LoadModel(modelDirectory);
                         }
                     }
-                    else 
+                    else
                     {
-                        currentVoiceModel = null; 
+                        currentVoiceModel = null;
                         lblStatus.Text = "No suitable default voice found.";
                         MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
@@ -372,7 +381,7 @@ private async Task ReinitializePiperProvider()
                     {
                         ExecutableLocation = piperExecutablePath,
                         WorkingDirectory = piperInstallationPath,
-                        Model = currentVoiceModel 
+                        Model = currentVoiceModel
                     };
                     piperProvider = new PiperProvider(config);
                     lblStatus.Text = "TTS Engine Ready.";
@@ -483,7 +492,7 @@ private async Task ReinitializePiperProvider()
                     string filename = SanitizeFilename(line, "speech", i + 1);
                     string fullPath = Path.Combine(selectedOutputPath, filename);
 
-                    byte[]? audioData = await piperProvider.InferAsync(line, AudioOutputType.Mp3); 
+                    byte[]? audioData = await piperProvider.InferAsync(line, AudioOutputType.Mp3);
 
                     if (audioData != null && audioData.Length > 0)
                     {
@@ -508,7 +517,7 @@ private async Task ReinitializePiperProvider()
             string summaryMessage = $"{successCount} line(s) converted successfully.";
             if (errorCount > 0)
             {
-                summaryMessage += $"\n{errorCount} line(s) failed."; 
+                summaryMessage += $"\n{errorCount} line(s) failed.";
                 lblStatus.Text = "Conversion complete with errors.";
                 MessageBox.Show(summaryMessage + "\n\nError Details:\n" + errorDetails.ToString(), "Conversion Finished with Errors", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
@@ -530,10 +539,10 @@ private async Task ReinitializePiperProvider()
             {
                 string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
                 sanitized = new string(inputText.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray());
-                sanitized = Regex.Replace(sanitized, @"\s+", "_"); 
-                sanitized = Regex.Replace(sanitized, @"_+", "_"); 
-                sanitized = sanitized.Length > 60 ? sanitized.Substring(0, 60) : sanitized; 
-                sanitized = sanitized.Trim('_'); 
+                sanitized = Regex.Replace(sanitized, @"\s+", "_");
+                sanitized = Regex.Replace(sanitized, @"_+", "_");
+                sanitized = sanitized.Length > 60 ? sanitized.Substring(0, 60) : sanitized;
+                sanitized = sanitized.Trim('_');
 
                 if (string.IsNullOrWhiteSpace(sanitized) || sanitized.Replace("_", "").Length == 0)
                 {
@@ -567,12 +576,12 @@ private async Task ReinitializePiperProvider()
                         lblStatus.Text = $"Downloading voice: {selectedVoice.Name}...";
                         Application.DoEvents();
                         // The DownloadModel method on the VoiceModel instance should handle its own metadata
-                        await selectedVoice.DownloadModel(modelsCommonPath); 
-                        
+                        await selectedVoice.DownloadModel(modelsCommonPath);
+
                         var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, selectedVoice.Key);
-                        if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json"))) 
+                        if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
                         {
-                             throw new Exception($"Failed to download voice model files for: {selectedVoice.Key}.");
+                            throw new Exception($"Failed to download voice model files for: {selectedVoice.Key}.");
                         }
                         lblStatus.Text = $"Voice {selectedVoice.Name} downloaded.";
                         Application.DoEvents();
@@ -584,7 +593,7 @@ private async Task ReinitializePiperProvider()
                         // Ensure we're using a fully loaded model instance, LoadModel gives a fresh one.
                         // selectedVoice might be from the list, not necessarily fully loaded for PiperConfig.
                     }
-                    
+
                     // Regardless of download, ensure it's loaded into a fresh variable for PiperConfig
                     // This ensures that properties like ModelLocation are correctly set from a full load.
                     VoiceModel fullyLoadedSelectedVoice = await VoiceModel.LoadModel(Path.Combine(modelsCommonPath, selectedVoice.Key));
@@ -599,7 +608,7 @@ private async Task ReinitializePiperProvider()
                     {
                         ExecutableLocation = piperExecutablePath,
                         WorkingDirectory = piperInstallationPath,
-                        Model = currentVoiceModel 
+                        Model = currentVoiceModel
                     };
                     piperProvider = new PiperProvider(newConfig); // Re-initialize provider
 
@@ -618,9 +627,22 @@ private async Task ReinitializePiperProvider()
                 {
                     this.UseWaitCursor = false;
                     // Enable conversion only if a provider exists (voice loaded successfully)
-                    btnStartConversion.Enabled = (piperProvider != null); 
+                    btnStartConversion.Enabled = (piperProvider != null);
                 }
             }
         }
     }
-}
+    public class VoiceViewModel
+    {
+        public VoiceModel Model { get; }
+        public string Name => Model.Name; // Assuming VoiceModel has a Name property
+        public VoiceViewModel(VoiceModel model)
+        {
+            Model = model;
+        }
+        public override string ToString()
+        {
+            return Name; // Display name in ComboBox
+        }
+    }
+}//             btnSelectFolder.Size = new Size(120, 23);

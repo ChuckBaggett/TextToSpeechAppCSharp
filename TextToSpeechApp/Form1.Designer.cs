@@ -31,6 +31,8 @@ namespace TextToSpeechApp
             lblStatus = new Label();
             lblSpeakerSelection = new Label();
             cmbSpeakerSelection = new ComboBox();
+            lblLanguageSelection = new Label();
+            cmbLanguageSelection = new ComboBox();
             SuspendLayout();
             // 
             // btnSelectFile
@@ -56,9 +58,10 @@ namespace TextToSpeechApp
             // btnSelectFolder
             // 
             btnSelectFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnSelectFolder.Location = new Point(12, 397);
+            btnSelectFolder.AutoSize = true;
+            btnSelectFolder.Location = new Point(12, 395);
             btnSelectFolder.Name = "btnSelectFolder";
-            btnSelectFolder.Size = new Size(120, 23);
+            btnSelectFolder.Size = new Size(125, 25);
             btnSelectFolder.TabIndex = 2;
             btnSelectFolder.Text = "Select Output Folder";
             btnSelectFolder.UseVisualStyleBackColor = true;
@@ -68,9 +71,9 @@ namespace TextToSpeechApp
             // 
             lblSelectedFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             lblSelectedFolder.AutoEllipsis = true;
-            lblSelectedFolder.Location = new Point(138, 397);
+            lblSelectedFolder.Location = new Point(143, 397);
             lblSelectedFolder.Name = "lblSelectedFolder";
-            lblSelectedFolder.Size = new Size(634, 23);
+            lblSelectedFolder.Size = new Size(629, 23);
             lblSelectedFolder.TabIndex = 3;
             lblSelectedFolder.Text = "Output Folder: (None selected)";
             lblSelectedFolder.TextAlign = ContentAlignment.MiddleLeft;
@@ -127,11 +130,31 @@ namespace TextToSpeechApp
             cmbSpeakerSelection.TabIndex = 8;
             cmbSpeakerSelection.Visible = false;
             // 
+            // lblLanguageSelection
+            // 
+            lblLanguageSelection.AutoSize = true;
+            lblLanguageSelection.Location = new Point(357, 439);
+            lblLanguageSelection.Name = "lblLanguageSelection";
+            lblLanguageSelection.Size = new Size(59, 15);
+            lblLanguageSelection.TabIndex = 9;
+            lblLanguageSelection.Text = "Language";
+            // 
+            // cmbLanguageSelection
+            // 
+            cmbLanguageSelection.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbLanguageSelection.FormattingEnabled = true;
+            cmbLanguageSelection.Location = new Point(422, 436);
+            cmbLanguageSelection.Name = "cmbLanguageSelection";
+            cmbLanguageSelection.Size = new Size(121, 23);
+            cmbLanguageSelection.TabIndex = 10;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(784, 613);
+            Controls.Add(cmbLanguageSelection);
+            Controls.Add(lblLanguageSelection);
             Controls.Add(cmbSpeakerSelection);
             Controls.Add(lblSpeakerSelection);
             Controls.Add(lblStatus);
@@ -150,5 +173,7 @@ namespace TextToSpeechApp
         private ComboBox comboBox1;
         private Label lblSpeakerSelection;
         private ComboBox cmbSpeakerSelection;
+        private Label lblLanguageSelection;
+        private ComboBox cmbLanguageSelection;
     }
 }

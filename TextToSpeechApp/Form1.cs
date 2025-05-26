@@ -18,7 +18,8 @@ namespace TextToSpeechApp
         private string piperBaseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TextToSpeechApp", "piper_tts");
         private string piperInstallationPath = string.Empty; 
         private string piperExecutablePath = string.Empty; 
-        private string modelsCommonPath = string.Empty; 
+        private string modelsCommonPath = string.Empty;
+        private Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
 
         public Form1()
         {
@@ -27,7 +28,224 @@ namespace TextToSpeechApp
             this.cmbVoiceSelection.SelectedIndexChanged += new System.EventHandler(this.cmbVoiceSelection_SelectedIndexChanged);
         }
 
+
         private async void Form1_Load(object sender, EventArgs e)
+{
+    this.UseWaitCursor = true;
+    lblStatus.Text = "Initializing TTS engine...";
+    Application.DoEvents();
+
+    try
+    {
+        Directory.CreateDirectory(piperBaseDirectory);
+        piperInstallationPath = Path.Combine(piperBaseDirectory, "piper");
+        piperExecutablePath = Path.Combine(piperInstallationPath, PiperDownloader.PiperExecutable);
+        modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
+        Directory.CreateDirectory(modelsCommonPath);
+
+        lblStatus.Text = "Checking for Piper executable...";
+        Application.DoEvents();
+        if (!File.Exists(piperExecutablePath))
+        {
+            lblStatus.Text = "Downloading Piper TTS...";
+            Application.DoEvents();
+
+            Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
+            await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory));
+
+            if (!File.Exists(piperExecutablePath))
+            {
+                throw new FileNotFoundException("Piper executable not found after download and extraction.", piperExecutablePath);
+            }
+            lblStatus.Text = "Piper executable downloaded and extracted.";
+            Application.DoEvents();
+        }
+        else
+        {
+            lblStatus.Text = "Piper executable found.";
+            Application.DoEvents();
+        }
+
+        lblStatus.Text = "Fetching available voices...";
+        Application.DoEvents();
+        Dictionary<string, VoiceModel>? allVoices = null;
+        try
+        {
+            allVoices = await PiperDownloader.GetHuggingFaceModelList();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to fetch voice list: {ex.Message}", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            currentVoiceModel = null;
+        }
+
+        if (allVoices == null || allVoices.Count == 0)
+        {
+            if (currentVoiceModel == null) {
+                MessageBox.Show("No voices found or could not load voice list.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            currentVoiceModel = null;
+        }
+        else
+        {
+            cmbVoiceSelection.Items.Clear();
+            foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Name))
+            {
+                cmbVoiceSelection.Items.Add(voice.Key); // TEMPORARY: Using Key for now
+            }
+            // cmbVoiceSelection.DisplayMember = "Key"; // TEMPORARY if adding string keys
+
+            string preferredDefaultModelKey = "en_US-lessac-medium";
+            VoiceModel? voiceToLoadAsDefault = allVoices.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
+
+            if (voiceToLoadAsDefault == null && allVoices.Values.Any())
+            {
+                voiceToLoadAsDefault = allVoices.Values.OrderBy(v => v.Name).First();
+            }
+
+            if (voiceToLoadAsDefault != null)
+            {
+                currentVoiceModel = voiceToLoadAsDefault;
+                if (cmbVoiceSelection.Items.Contains(currentVoiceModel.Key)) // TEMPORARY check
+                {
+                    cmbVoiceSelection.SelectedItem = currentVoiceModel.Key; // TEMPORARY
+                }
+
+                lblStatus.Text = $"Loading default voice: {currentVoiceModel.Name}...";
+                Application.DoEvents();
+
+                var modelDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
+                if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
+                {
+                    lblStatus.Text = $"Downloading default voice: {currentVoiceModel.Name}...";
+                    Application.DoEvents();
+                    await currentVoiceModel.DownloadModel(modelsCommonPath);
+
+                    var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
+                    if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
+                    {
+                         throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}.");
+                    }
+                    lblStatus.Text = $"Voice {currentVoiceModel.Name} downloaded.";
+                    Application.DoEvents();
+                }
+                else
+                {
+                    lblStatus.Text = $"Loading voice {currentVoiceModel.Name} from disk...";
+                    Application.DoEvents();
+                    currentVoiceModel = await VoiceModel.LoadModel(modelDirectory);
+                }
+            }
+            else
+            {
+                currentVoiceModel = null;
+                lblStatus.Text = "No suitable default voice found.";
+                MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        UpdateSpeakerSelectionUI(currentVoiceModel);
+        await ReinitializePiperProvider();
+    }
+    catch (Exception ex)
+    {
+        lblStatus.Text = $"Error initializing TTS: {ex.Message}";
+        MessageBox.Show($"Detailed Error: {ex.ToString()}", "TTS Initialization Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        btnStartConversion.Enabled = false;
+        cmbVoiceSelection.Enabled = false;
+        if (cmbSpeakerSelection != null) cmbSpeakerSelection.Enabled = false;
+    }
+    finally
+    {
+        this.UseWaitCursor = false;
+        cmbVoiceSelection.Enabled = cmbVoiceSelection.Items.Count > 0;
+    }
+}
+        private void UpdateSpeakerSelectionUI(VoiceModel? voice)
+        {
+            cmbSpeakerSelection.Items.Clear();
+            currentSpeakerMap.Clear();
+            cmbSpeakerSelection.Visible = false;
+            lblSpeakerSelection.Visible = false;
+
+            if (voice != null && voice.NumSpeakers > 0 && voice.SpeakerIdMap != null && voice.SpeakerIdMap.Any())
+            {
+                foreach (var speakerEntry in voice.SpeakerIdMap.OrderBy(kvp => kvp.Value))
+                {
+                    uint speakerId = Convert.ToUInt32(speakerEntry.Value);
+                    currentSpeakerMap[speakerEntry.Key] = speakerId;
+                    cmbSpeakerSelection.Items.Add(speakerEntry.Key);
+                }
+
+                if (cmbSpeakerSelection.Items.Count > 0)
+                {
+                    cmbSpeakerSelection.SelectedIndex = 0;
+                    lblSpeakerSelection.Visible = true;
+                    cmbSpeakerSelection.Visible = true;
+                }
+            }
+        }
+        
+
+private async Task ReinitializePiperProvider()
+        {
+            if (currentVoiceModel == null)
+            {
+                piperProvider = null;
+                btnStartConversion.Enabled = false;
+                lblStatus.Text = "TTS Engine not ready: No voice loaded.";
+                return;
+            }
+
+            this.UseWaitCursor = true;
+            btnStartConversion.Enabled = false;
+            lblStatus.Text = $"Configuring TTS for voice '{currentVoiceModel.Name}'...";
+            Application.DoEvents();
+
+            try
+            {
+                uint selectedSpeakerId = 0;
+                if (cmbSpeakerSelection.Visible && cmbSpeakerSelection.SelectedItem != null && cmbSpeakerSelection.Items.Count > 0)
+                {
+                    string? selectedSpeakerKey = cmbSpeakerSelection.SelectedItem.ToString();
+                    if (selectedSpeakerKey != null && currentSpeakerMap.ContainsKey(selectedSpeakerKey))
+                    {
+                        selectedSpeakerId = currentSpeakerMap[selectedSpeakerKey];
+                    }
+                    else if (cmbSpeakerSelection.Items.Count > 0)
+                    {
+                        cmbSpeakerSelection.SelectedIndex = 0;
+                        selectedSpeakerKey = cmbSpeakerSelection.SelectedItem.ToString();
+                        if (selectedSpeakerKey != null && currentSpeakerMap.ContainsKey(selectedSpeakerKey))
+                        {
+                            selectedSpeakerId = currentSpeakerMap[selectedSpeakerKey];
+                        }
+                    }
+                }
+
+                PiperConfiguration newConfig = new PiperConfiguration()
+                {
+                    ExecutableLocation = piperExecutablePath,
+                    WorkingDirectory = piperInstallationPath,
+                    Model = currentVoiceModel,
+                    SpeakerId = selectedSpeakerId
+                };
+                piperProvider = new PiperProvider(newConfig);
+                lblStatus.Text = $"TTS Engine ready with voice '{currentVoiceModel.Name}'" + (cmbSpeakerSelection.Visible && cmbSpeakerSelection.SelectedItem != null ? $" (Speaker: {cmbSpeakerSelection.SelectedItem})" : "") + ".";
+            }
+            catch (Exception ex)
+            {
+                lblStatus.Text = $"Error initializing PiperProvider: {ex.Message}";
+                MessageBox.Show($"Error setting up TTS: {ex.ToString()}", "TTS Config Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                piperProvider = null;
+            }
+            finally
+            {
+                this.UseWaitCursor = false;
+                btnStartConversion.Enabled = (piperProvider != null);
+            }
+        }
+        private async void population(object sender, EventArgs e)
         {
             this.UseWaitCursor = true;
             lblStatus.Text = "Initializing TTS engine...";
@@ -257,7 +475,7 @@ namespace TextToSpeechApp
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: "{line.Substring(0, Math.Min(line.Length, 20)) + "..."}"";
+                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: \"{line.Substring(0, Math.Min(line.Length, 20)) + "..."}\"";
                 Application.DoEvents();
 
                 try

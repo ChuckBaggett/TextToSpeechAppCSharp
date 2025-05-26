@@ -107,6 +107,7 @@ namespace TextToSpeechApp
                 PiperConfiguration config = new PiperConfiguration()
                 {
                     ExecutableLocation = piperExecutablePath, // Changed from ExecutablePath
+                    WorkingDirectory = piperInstallationPath,
                     Model = currentVoiceModel 
                 };
                 piperProvider = new PiperProvider(config); 

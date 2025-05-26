@@ -4,20 +4,20 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using PiperSharp;
-using PiperSharp.Models;
+using PiperSharp; // For PiperProvider, PiperDownloader
+using PiperSharp.Models; // For VoiceModel, PiperConfiguration, AudioOutputType
 
 namespace TextToSpeechApp
 {
     public partial class Form1 : Form
     {
-        private PiperService? piperProvider;
+        private PiperProvider? piperProvider; // Changed from PiperService
         private VoiceModel? currentVoiceModel;
         private string selectedOutputPath = string.Empty;
         private string piperBaseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TextToSpeechApp", "piper_tts");
-        private string piperInstallationPath = string.Empty; // Will be AppData\Local\TextToSpeechApp\piper_tts\piper
-        private string piperExecutablePath = string.Empty; // Will be AppData\Local\TextToSpeechApp\piper_tts\piper\piper.exe
-        private string modelsCommonPath = string.Empty; // Will be AppData\Local\TextToSpeechApp\piper_tts\models
+        private string piperInstallationPath = string.Empty; 
+        private string piperExecutablePath = string.Empty; 
+        private string modelsCommonPath = string.Empty; 
 
         public Form1()
         {
@@ -34,25 +34,21 @@ namespace TextToSpeechApp
             try
             {
                 Directory.CreateDirectory(piperBaseDirectory);
-                piperInstallationPath = Path.Combine(piperBaseDirectory, "piper"); // Piper will be extracted into this subfolder
-                piperExecutablePath = Path.Combine(piperInstallationPath, "piper.exe");
+                piperInstallationPath = Path.Combine(piperBaseDirectory, "piper"); 
+                piperExecutablePath = Path.Combine(piperInstallationPath, PiperDownloader.PiperExecutable); // Use PiperDownloader.PiperExecutable
                 modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
                 Directory.CreateDirectory(modelsCommonPath);
-
 
                 lblStatus.Text = "Checking for Piper executable...";
                 Application.DoEvents();
                 if (!File.Exists(piperExecutablePath))
                 {
-                    Directory.CreateDirectory(piperInstallationPath);
-                    lblStatus.Text = "Downloading Piper TTS (~25MB)...";
+                    // Directory.CreateDirectory(piperInstallationPath); // piperBaseDirectory is passed to ExtractPiper which should handle subfolder creation
+                    lblStatus.Text = "Downloading Piper TTS..."; 
                     Application.DoEvents();
-                    var piperZipPath = Path.Combine(piperBaseDirectory, "piper.zip");
-
-                    // Corrected download and extraction
-                    await PiperDownloader.DownloadPiper(piperZipPath, архитектура: PiperArchitecture.X64, progress: new Progress<string>(s => lblStatus.Text = $"Downloading Piper: {s}"));
-                    System.IO.Compression.ZipFile.ExtractToDirectory(piperZipPath, piperInstallationPath, true);
-                    File.Delete(piperZipPath);
+                    
+                    Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
+                    await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory)); 
 
                     if (!File.Exists(piperExecutablePath))
                     {
@@ -67,50 +63,57 @@ namespace TextToSpeechApp
                     Application.DoEvents();
                 }
 
-                string defaultModelKey = "en_US-lessac-medium"; // A common English voice
+                string defaultModelKey = "en_US-lessac-medium"; 
                 lblStatus.Text = $"Looking for voice model: {defaultModelKey}...";
                 Application.DoEvents();
 
-                var modelConfigFile = Path.Combine(modelsCommonPath, $"{defaultModelKey}.onnx.json");
-                var modelOnnxFile = Path.Combine(modelsCommonPath, $"{defaultModelKey}.onnx");
+                var modelDirectory = Path.Combine(modelsCommonPath, defaultModelKey);
 
-                if (!File.Exists(modelConfigFile) || !File.Exists(modelOnnxFile))
+                if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
                 {
                     lblStatus.Text = $"Downloading voice model: {defaultModelKey}...";
                     Application.DoEvents();
-                    // DownloadModelByKey might create subdirectories, ensure modelsCommonPath is where it looks or saves.
-                    currentVoiceModel = await PiperDownloader.DownloadModelByKey(defaultModelKey, modelsCommonPath, архитектура: PiperArchitecture.X64, progress: new Progress<string>(s => lblStatus.Text = $"Voice MDL: {s}"));
-                    if (currentVoiceModel == null) throw new Exception($"Failed to download voice model: {defaultModelKey}");
-                     // Ensure paths in model are updated if necessary
-                    currentVoiceModel.ModelPath = Path.Combine(modelsCommonPath, Path.GetFileName(currentVoiceModel.ModelPath));
-                    currentVoiceModel.ModelConfigPath = Path.Combine(modelsCommonPath, Path.GetFileName(currentVoiceModel.ModelConfigPath));
-                    // await currentVoiceModel.SaveModel(currentVoiceModel.ModelPath); // This might not be needed if paths are correct
+                    
+                    currentVoiceModel = await PiperDownloader.GetModelByKey(defaultModelKey); 
+                    if (currentVoiceModel == null) 
+                    {
+                        throw new Exception($"Failed to get metadata for voice model: {defaultModelKey}");
+                    }
+                    await currentVoiceModel.DownloadModel(modelsCommonPath); 
+                    
+                    var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
+                    if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json"))) 
+                    {
+                         throw new Exception($"Failed to download voice model files for: {defaultModelKey}. Expected model.json at {Path.Combine(expectedModelSpecificDirectory, "model.json")}");
+                    }
+                    lblStatus.Text = $"Voice model {defaultModelKey} downloaded.";
+                    Application.DoEvents();
                 }
                 else
                 {
-                    lblStatus.Text = $"Loading voice model: {defaultModelKey}...";
+                    lblStatus.Text = $"Loading voice model from disk: {defaultModelKey}...";
                     Application.DoEvents();
-                    currentVoiceModel = await VoiceModel.LoadModel(modelOnnxFile, modelConfigFile); // Use LoadModel with explicit paths
+                    currentVoiceModel = await VoiceModel.LoadModel(modelDirectory); 
                 }
 
                 if (currentVoiceModel == null)
                 {
                     throw new Exception("Voice model could not be loaded or downloaded.");
                 }
-                currentVoiceModel.Name = defaultModelKey; // Set name for display
+                // currentVoiceModel.Name = defaultModelKey; // Name should be populated by the library.
 
-                lblStatus.Text = "Initializing PiperService...";
+                lblStatus.Text = "Initializing PiperProvider...";
                 Application.DoEvents();
                 PiperConfiguration config = new PiperConfiguration()
                 {
                     ExecutablePath = piperExecutablePath,
-                    DefaultVoice = currentVoiceModel
+                    Model = currentVoiceModel 
                 };
-                piperProvider = new PiperService(config);
+                piperProvider = new PiperProvider(config); 
 
                 cmbVoiceSelection.Items.Clear();
                 cmbVoiceSelection.Items.Add(currentVoiceModel);
-                cmbVoiceSelection.DisplayMember = "Name";
+                cmbVoiceSelection.DisplayMember = "Name"; 
                 if (cmbVoiceSelection.Items.Count > 0)
                 {
                     cmbVoiceSelection.SelectedIndex = 0;
@@ -207,15 +210,6 @@ namespace TextToSpeechApp
             int errorCount = 0;
             System.Text.StringBuilder errorDetails = new System.Text.StringBuilder();
 
-            VoiceModel? selectedVoice = cmbVoiceSelection.SelectedItem as VoiceModel;
-            if (selectedVoice == null) {
-                 MessageBox.Show("Selected voice is not valid.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                 this.UseWaitCursor = false;
-                 btnStartConversion.Enabled = true;
-                 return;
-            }
-
-
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
@@ -227,14 +221,7 @@ namespace TextToSpeechApp
                     string filename = SanitizeFilename(line, "speech", i + 1);
                     string fullPath = Path.Combine(selectedOutputPath, filename);
 
-                    var synthesisConfig = new PiperSynthesisConfig()
-                    {
-                        Model = selectedVoice, // Use the selected voice model
-                        OutputType = AudioOutputType.Mp3 // Specify MP3 output
-                    };
-
-                    // Assuming InferAsync returns byte[] for MP3. Adjust if it returns WAV and needs conversion.
-                    byte[]? audioData = await piperProvider.InferAsync(line, synthesisConfig);
+                    byte[]? audioData = await piperProvider.InferAsync(line, AudioOutputType.Mp3); 
 
                     if (audioData != null && audioData.Length > 0)
                     {
@@ -250,7 +237,6 @@ namespace TextToSpeechApp
                 {
                     errorCount++;
                     errorDetails.AppendLine($"Error on line {i + 1} ('{line}'): {ex.Message}");
-                    // Optionally, log more details: ex.ToString()
                 }
             }
 
@@ -260,7 +246,7 @@ namespace TextToSpeechApp
             string summaryMessage = $"{successCount} line(s) converted successfully.";
             if (errorCount > 0)
             {
-                summaryMessage += $"\n{errorCount} line(s) failed.";
+                summaryMessage += $"\n{errorCount} line(s) failed."; 
                 lblStatus.Text = "Conversion complete with errors.";
                 MessageBox.Show(summaryMessage + "\n\nError Details:\n" + errorDetails.ToString(), "Conversion Finished with Errors", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
@@ -282,10 +268,10 @@ namespace TextToSpeechApp
             {
                 string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
                 sanitized = new string(inputText.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray());
-                sanitized = Regex.Replace(sanitized, @"\s+", "_"); // Replace multiple whitespace with single underscore
-                sanitized = Regex.Replace(sanitized, @"_+", "_"); // Replace multiple underscores with single one
-                sanitized = sanitized.Length > 60 ? sanitized.Substring(0, 60) : sanitized; // Truncate
-                sanitized = sanitized.Trim('_'); // Remove leading/trailing underscores
+                sanitized = Regex.Replace(sanitized, @"\s+", "_"); 
+                sanitized = Regex.Replace(sanitized, @"_+", "_"); 
+                sanitized = sanitized.Length > 60 ? sanitized.Substring(0, 60) : sanitized; 
+                sanitized = sanitized.Trim('_'); 
 
                 if (string.IsNullOrWhiteSpace(sanitized) || sanitized.Replace("_", "").Length == 0)
                 {

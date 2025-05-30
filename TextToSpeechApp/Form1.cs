@@ -20,6 +20,7 @@ namespace TextToSpeechApp
         private string piperExecutablePath = string.Empty;
         private string modelsCommonPath = string.Empty;
         private Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
+        private Dictionary<string, VoiceModel>? allVoicesList;
 
         public Form1()
         {
@@ -68,10 +69,10 @@ namespace TextToSpeechApp
 
                 lblStatus.Text = "Fetching available voices...";
                 Application.DoEvents();
-                Dictionary<string, VoiceModel>? allVoices = null;
+                Dictionary<string, VoiceModel>? allVoicesList = null;
                 try
                 {
-                    allVoices = await PiperDownloader.GetHuggingFaceModelList();
+                    allVoicesList = await PiperDownloader.GetHuggingFaceModelList();
                 }
                 catch (Exception ex)
                 {
@@ -79,7 +80,7 @@ namespace TextToSpeechApp
                     currentVoiceModel = null;
                 }
 
-                if (allVoices == null || allVoices.Count == 0)
+                if (allVoicesList == null || allVoicesList.Count == 0)
                 {
                     if (currentVoiceModel == null)
                     {
@@ -90,18 +91,18 @@ namespace TextToSpeechApp
                 else
                 {
                     cmbVoiceSelection.Items.Clear();
-                    foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Name))
+                    foreach (VoiceModel voice in allVoicesList.Values.OrderBy(v => v.Name))
                     {
                         cmbVoiceSelection.Items.Add(voice.Key); // TEMPORARY: Using Key for now
                     }
                     cmbVoiceSelection.DisplayMember = "DisplayName";
 
                     string preferredDefaultModelKey = "en_US-lessac-medium";
-                    VoiceModel? voiceToLoadAsDefault = allVoices.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
+                    VoiceModel? voiceToLoadAsDefault = allVoicesList.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
 
-                    if (voiceToLoadAsDefault == null && allVoices.Values.Any())
+                    if (voiceToLoadAsDefault == null && allVoicesList.Values.Any())
                     {
-                        voiceToLoadAsDefault = allVoices.Values.OrderBy(v => v.Name).First();
+                        voiceToLoadAsDefault = allVoicesList.Values.OrderBy(v => v.Name).First();
                     }
 
                     if (voiceToLoadAsDefault != null)
@@ -293,10 +294,10 @@ namespace TextToSpeechApp
 
                 lblStatus.Text = "Fetching available voices...";
                 Application.DoEvents();
-                Dictionary<string, VoiceModel>? allVoices = null;
+                Dictionary<string, VoiceModel>? allVoicesList = null;
                 try
                 {
-                    allVoices = await PiperDownloader.GetHuggingFaceModelList();
+                    allVoicesList = await PiperDownloader.GetHuggingFaceModelList();
                 }
                 catch (Exception exVoiceList) // Renamed ex to exVoiceList for clarity
                 {
@@ -304,7 +305,7 @@ namespace TextToSpeechApp
                     currentVoiceModel = null;
                 }
 
-                if (allVoices == null || allVoices.Count == 0)
+                if (allVoicesList == null || allVoicesList.Count == 0)
                 {
                     if (currentVoiceModel == null)
                     { // Only show message if the try-catch also failed
@@ -314,21 +315,55 @@ namespace TextToSpeechApp
                 }
                 else
                 {
+                    // --- START: New logic for Language ComboBox ---
+                    var languages = allVoicesList.Values
+                        .Select(v => v.Language?.NameEnglish)
+                        .Where(langName => !string.IsNullOrEmpty(langName))
+                        .Distinct()
+                        .OrderBy(langName => langName)
+                        .ToList();
+
+                    cmbLanguageSelection.Items.Clear();
+                    if (languages.Any())
+                    {
+                        foreach (string langName in languages)
+                        {
+                            cmbLanguageSelection.Items.Add(langName);
+                        }
+
+                        string preferredDefaultLanguage = "English";
+                        if (languages.Contains(preferredDefaultLanguage))
+                        {
+                            cmbLanguageSelection.SelectedItem = preferredDefaultLanguage;
+                        }
+                        else
+                        {
+                            cmbLanguageSelection.SelectedIndex = 0;
+                        }
+                        cmbLanguageSelection.Visible = true;
+                        lblLanguageSelection.Visible = true;
+                    }
+                    else
+                    {
+                        cmbLanguageSelection.Visible = false;
+                        lblLanguageSelection.Visible = false;
+                    }
+                    // --- END: New logic for Language ComboBox ---
                     cmbVoiceSelection.Items.Clear();
                     // Ensure VoiceModel has a Name property suitable for display, or use Key.
                     // Adding the VoiceModel object directly to Items is good.
-                    foreach (VoiceModel voice in allVoices.Values.OrderBy(v => v.Key))
+                    foreach (VoiceModel voice in allVoicesList.Values.OrderBy(v => v.Key))
                     {
                         cmbVoiceSelection.Items.Add(new VoiceViewModel(voice));
                     }
                     cmbVoiceSelection.DisplayMember = "Name";
 
                     string preferredDefaultModelKey = "en_US-lessac-medium";
-                    VoiceModel? voiceToLoadAsDefault = allVoices.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
+                    VoiceModel? voiceToLoadAsDefault = allVoicesList.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
 
-                    if (voiceToLoadAsDefault == null && allVoices.Values.Any())
+                    if (voiceToLoadAsDefault == null && allVoicesList.Values.Any())
                     {
-                        voiceToLoadAsDefault = allVoices.Values.OrderBy(v => v.Name).First();
+                        voiceToLoadAsDefault = allVoicesList.Values.OrderBy(v => v.Name).First();
                     }
 
                     if (voiceToLoadAsDefault != null)

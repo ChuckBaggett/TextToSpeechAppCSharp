@@ -14,6 +14,12 @@ namespace TextToSpeechApp
     {
         private PiperProvider? piperProvider; // Changed from PiperService
         private VoiceModel? currentVoiceModel;
+        private ComboBox cmbSpeakerSelection; // Will be added via Designer later
+        private Label lblSpeakerSelection;    // Will be added via Designer later
+        private ComboBox cmbLanguageSelection; // Will be added via Designer later
+        private Label lblLanguageSelection;    // Will be added via Designer later
+        private Dictionary<string, VoiceModel>? allVoicesList; 
+        private Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
         private string selectedOutputPath = string.Empty;
         private string piperBaseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TextToSpeechApp", "piper_tts");
         private string piperInstallationPath = string.Empty;
@@ -27,8 +33,24 @@ namespace TextToSpeechApp
             InitializeComponent();
             this.Load += new System.EventHandler(this.Form1_Load);
             this.cmbVoiceSelection.SelectedIndexChanged += new System.EventHandler(this.cmbVoiceSelection_SelectedIndexChanged);
-        }
 
+            // Placeholder for cmbSpeakerSelection initialization - user will add via Designer
+            this.cmbSpeakerSelection = new System.Windows.Forms.ComboBox();
+            this.lblSpeakerSelection = new System.Windows.Forms.Label(); 
+            // Actual properties will be set in Designer. Add basic ones here for now.
+            this.lblSpeakerSelection.Name = "lblSpeakerSelection";
+            this.lblSpeakerSelection.Text = "Speaker:";
+            this.lblSpeakerSelection.AutoSize = true; 
+            this.cmbSpeakerSelection.Name = "cmbSpeakerSelection";
+            this.cmbSpeakerSelection.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbSpeakerSelection.FormattingEnabled = true;
+            this.cmbSpeakerSelection.Visible = false; // Initially hidden
+            this.lblSpeakerSelection.Visible = false; // Initially hidden
+            // Add to Controls - User will position with Designer. For now, just add.
+            // this.Controls.Add(this.lblSpeakerSelection);
+            // this.Controls.Add(this.cmbSpeakerSelection);
+            // The above lines for adding to Controls are commented out as it's better done via designer.
+            // The subtask will focus on logic, user will handle exact placement and adding to Controls collection.
 
         private async void Form1_Load(object sender, EventArgs e)
         {
@@ -207,56 +229,6 @@ namespace TextToSpeechApp
             }
 
             this.UseWaitCursor = true;
-            btnStartConversion.Enabled = false;
-            lblStatus.Text = $"Configuring TTS for voice '{currentVoiceModel.Name}'...";
-            Application.DoEvents();
-
-            try
-            {
-                uint selectedSpeakerId = 0;
-                if (cmbSpeakerSelection.Visible && cmbSpeakerSelection.SelectedItem != null && cmbSpeakerSelection.Items.Count > 0)
-                {
-                    string? selectedSpeakerKey = cmbSpeakerSelection.SelectedItem.ToString();
-                    if (selectedSpeakerKey != null && currentSpeakerMap.ContainsKey(selectedSpeakerKey))
-                    {
-                        selectedSpeakerId = currentSpeakerMap[selectedSpeakerKey];
-                    }
-                    else if (cmbSpeakerSelection.Items.Count > 0)
-                    {
-                        cmbSpeakerSelection.SelectedIndex = 0;
-                        selectedSpeakerKey = cmbSpeakerSelection.SelectedItem.ToString();
-                        if (selectedSpeakerKey != null && currentSpeakerMap.ContainsKey(selectedSpeakerKey))
-                        {
-                            selectedSpeakerId = currentSpeakerMap[selectedSpeakerKey];
-                        }
-                    }
-                }
-
-                PiperConfiguration newConfig = new PiperConfiguration()
-                {
-                    ExecutableLocation = piperExecutablePath,
-                    WorkingDirectory = piperInstallationPath,
-                    Model = currentVoiceModel,
-                    SpeakerId = selectedSpeakerId
-                };
-                piperProvider = new PiperProvider(newConfig);
-                lblStatus.Text = $"TTS Engine ready with voice '{currentVoiceModel.Name}'" + (cmbSpeakerSelection.Visible && cmbSpeakerSelection.SelectedItem != null ? $" (Speaker: {cmbSpeakerSelection.SelectedItem})" : "") + ".";
-            }
-            catch (Exception ex)
-            {
-                lblStatus.Text = $"Error initializing PiperProvider: {ex.Message}";
-                MessageBox.Show($"Error setting up TTS: {ex.ToString()}", "TTS Config Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                piperProvider = null;
-            }
-            finally
-            {
-                this.UseWaitCursor = false;
-                btnStartConversion.Enabled = (piperProvider != null);
-            }
-        }
-        private async void population(object sender, EventArgs e)
-        {
-            this.UseWaitCursor = true;
             lblStatus.Text = "Initializing TTS engine...";
             Application.DoEvents();
 
@@ -366,7 +338,8 @@ namespace TextToSpeechApp
                         voiceToLoadAsDefault = allVoicesList.Values.OrderBy(v => v.Name).First();
                     }
 
-                    if (voiceToLoadAsDefault != null)
+                    string preferredDefaultLanguage = "English"; // Or get from config, etc.
+                    if (languages.Contains(preferredDefaultLanguage))
                     {
                         // Set currentVoiceModel to the one we intend to load as default.
                         // This assignment is crucial before it's used by the load/download logic.
@@ -406,6 +379,11 @@ namespace TextToSpeechApp
                         MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
+                // else for (allVoicesList == null || allVoicesList.Count == 0)
+                // {
+                //     // This part remains, if allVoicesList is null/empty, PopulateVoiceSelectionComboBox will handle it.
+                //     // UpdateSpeakerSelectionUI(null); // This was here but is effectively handled by Populate...
+                // }
 
                 // Initialize PiperProvider only if a voice was successfully loaded/selected
                 if (currentVoiceModel != null)
@@ -519,7 +497,7 @@ namespace TextToSpeechApp
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: \"{line.Substring(0, Math.Min(line.Length, 20)) + "..."}\"";
+                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: "{line.Substring(0, Math.Min(line.Length, 20)) + "..."}"";
                 Application.DoEvents();
 
                 try
@@ -589,8 +567,10 @@ namespace TextToSpeechApp
 
         private async void cmbVoiceSelection_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cmbVoiceSelection.SelectedItem is VoiceModel selectedVoice)
+            if (cmbVoiceSelection.SelectedItem is VoiceViewModel selectedViewModel) // Changed to VoiceViewModel
             {
+                VoiceModel selectedVoice = selectedViewModel.Model; // Get the actual VoiceModel
+
                 if (selectedVoice == currentVoiceModel && piperProvider != null)
                 {
                     // No change, or already loaded
@@ -662,18 +642,9 @@ namespace TextToSpeechApp
                 {
                     this.UseWaitCursor = false;
                     // Enable conversion only if a provider exists (voice loaded successfully)
-                    btnStartConversion.Enabled = (piperProvider != null);
+                    btnStartConversion.Enabled = (piperProvider != null); 
                 }
             }
-        }
-    }
-    public class VoiceViewModel
-    {
-        public VoiceModel Model { get; }
-        public string Name => Model.Name; // Assuming VoiceModel has a Name property
-        public VoiceViewModel(VoiceModel model)
-        {
-            Model = model;
         }
         public override string ToString()
         {

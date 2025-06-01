@@ -10,6 +10,10 @@ namespace TextToSpeechApp
         private System.Windows.Forms.ComboBox cmbVoiceSelection;
         private System.Windows.Forms.Button btnStartConversion;
         private System.Windows.Forms.Label lblStatus;
+        private System.Windows.Forms.Label lblSpeakerSelection;
+        private System.Windows.Forms.ComboBox cmbSpeakerSelection;
+        private System.Windows.Forms.Label lblLanguageSelection;
+        private System.Windows.Forms.ComboBox cmbLanguageSelection;
 
         protected override void Dispose(bool disposing)
         {
@@ -37,25 +41,23 @@ namespace TextToSpeechApp
             // 
             // btnSelectFile
             // 
-            this.btnSelectFile.Location = new System.Drawing.Point(12, 12);
-            this.btnSelectFile.Name = "btnSelectFile";
-            this.btnSelectFile.Size = new System.Drawing.Size(120, 23);
-            this.btnSelectFile.TabIndex = 0;
-            this.btnSelectFile.Text = "Select Text File";
-            this.btnSelectFile.UseVisualStyleBackColor = true;
-            this.btnSelectFile.Click += new System.EventHandler(this.btnSelectFile_Click);
+            btnSelectFile.Location = new Point(12, 12);
+            btnSelectFile.Name = "btnSelectFile";
+            btnSelectFile.Size = new Size(120, 23);
+            btnSelectFile.TabIndex = 0;
+            btnSelectFile.Text = "Select Text File";
+            btnSelectFile.UseVisualStyleBackColor = true;
+            btnSelectFile.Click += btnSelectFile_Click;
             // 
             // txtEditor
             // 
-            this.txtEditor.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtEditor.Location = new System.Drawing.Point(12, 41);
-            this.txtEditor.Multiline = true;
-            this.txtEditor.Name = "txtEditor";
-            this.txtEditor.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.txtEditor.Size = new System.Drawing.Size(760, 350);
-            this.txtEditor.TabIndex = 1;
+            txtEditor.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            txtEditor.Location = new Point(12, 54);
+            txtEditor.Multiline = true;
+            txtEditor.Name = "txtEditor";
+            txtEditor.ScrollBars = ScrollBars.Both;
+            txtEditor.Size = new Size(748, 306);
+            txtEditor.TabIndex = 1;
             // 
             // btnSelectFolder
             // 
@@ -82,35 +84,55 @@ namespace TextToSpeechApp
             // 
             // cmbVoiceSelection
             // 
-            this.cmbVoiceSelection.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.cmbVoiceSelection.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cmbVoiceSelection.FormattingEnabled = true;
-            this.cmbVoiceSelection.Location = new System.Drawing.Point(12, 426);
-            this.cmbVoiceSelection.Name = "cmbVoiceSelection";
-            this.cmbVoiceSelection.Size = new System.Drawing.Size(250, 23);
-            this.cmbVoiceSelection.TabIndex = 4;
+            cmbVoiceSelection.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            cmbVoiceSelection.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbVoiceSelection.FormattingEnabled = true;
+            cmbVoiceSelection.Location = new Point(96, 513);
+            cmbVoiceSelection.Name = "cmbVoiceSelection";
+            cmbVoiceSelection.Size = new Size(250, 23);
+            cmbVoiceSelection.TabIndex = 4;
             // 
             // btnStartConversion
             // 
-            this.btnStartConversion.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnStartConversion.Location = new System.Drawing.Point(652, 426);
-            this.btnStartConversion.Name = "btnStartConversion";
-            this.btnStartConversion.Size = new System.Drawing.Size(120, 23);
-            this.btnStartConversion.TabIndex = 5;
-            this.btnStartConversion.Text = "Convert to Speech";
-            this.btnStartConversion.UseVisualStyleBackColor = true;
-            this.btnStartConversion.Click += new System.EventHandler(this.btnStartConversion_Click);
+            btnStartConversion.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnStartConversion.Font = new Font("Segoe UI", 12F);
+            btnStartConversion.Location = new Point(606, 513);
+            btnStartConversion.Name = "btnStartConversion";
+            btnStartConversion.Size = new Size(154, 42);
+            btnStartConversion.TabIndex = 5;
+            btnStartConversion.Text = "Convert to Speech";
+            btnStartConversion.UseVisualStyleBackColor = true;
+            btnStartConversion.Click += btnStartConversion_Click;
             // 
             // lblStatus
             // 
-            this.lblStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblStatus.Location = new System.Drawing.Point(12, 458);
-            this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(760, 23);
-            this.lblStatus.TabIndex = 6;
-            this.lblStatus.Text = "Status: Ready";
-            this.lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            lblStatus.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            lblStatus.Location = new Point(12, 581);
+            lblStatus.Name = "lblStatus";
+            lblStatus.Size = new Size(760, 23);
+            lblStatus.TabIndex = 6;
+            lblStatus.Text = "Status: Ready";
+            lblStatus.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // lblSpeakerSelection
+            // 
+            lblSpeakerSelection.AutoSize = true;
+            lblSpeakerSelection.Font = new Font("Segoe UI", 12F);
+            lblSpeakerSelection.Location = new Point(12, 515);
+            lblSpeakerSelection.Name = "lblSpeakerSelection";
+            lblSpeakerSelection.Size = new Size(66, 21);
+            lblSpeakerSelection.TabIndex = 7;
+            lblSpeakerSelection.Text = "Speaker";
+            // 
+            // cmbSpeakerSelection
+            // 
+            cmbSpeakerSelection.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbSpeakerSelection.FormattingEnabled = true;
+            cmbSpeakerSelection.Location = new Point(377, 513);
+            cmbSpeakerSelection.Name = "cmbSpeakerSelection";
+            cmbSpeakerSelection.Size = new Size(121, 23);
+            cmbSpeakerSelection.TabIndex = 8;
+            cmbSpeakerSelection.Visible = false;
             // 
             // lblLanguageSelection
             // 
@@ -151,11 +173,11 @@ namespace TextToSpeechApp
             ResumeLayout(false);
             PerformLayout();
         }
-        private Label label1;
-        private ComboBox comboBox1;
-        private Label lblSpeakerSelection;
-        private ComboBox cmbSpeakerSelection;
-        private Label lblLanguageSelection;
-        private ComboBox cmbLanguageSelection;
+        // private Label label1;
+        // private ComboBox comboBox1;
+        // private Label lblSpeakerSelection;
+        // private ComboBox cmbSpeakerSelection;
+        // private Label lblLanguageSelection;
+        // private ComboBox cmbLanguageSelection;
     }
 }

@@ -10,6 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Form1 - backup of old version.cs" />
+    <Compile Remove="Form1 - backup of original clean slate version .cs" />
     <Compile Remove="Form1-copy.cs" />
   </ItemGroup>
 

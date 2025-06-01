@@ -1,61 +1,42 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic; // Added
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using PiperSharp; // For PiperProvider, PiperDownloader
-using PiperSharp.Models; // For VoiceModel, PiperConfiguration, AudioOutputType
+using PiperSharp;
+using PiperSharp.Models;
 
 namespace TextToSpeechApp
 {
     public partial class Form1 : Form
     {
-        private PiperProvider? piperProvider; // Changed from PiperService
+        private PiperProvider? piperProvider;
         private VoiceModel? currentVoiceModel;
-        private ComboBox cmbSpeakerSelection; // Will be added via Designer later
-        private Label lblSpeakerSelection;    // Will be added via Designer later
-        private ComboBox cmbLanguageSelection; // Will be added via Designer later
-        private Label lblLanguageSelection;    // Will be added via Designer later
-        private Dictionary<string, VoiceModel>? allVoicesList; 
-        private Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
         private string selectedOutputPath = string.Empty;
-        private string piperBaseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TextToSpeechApp", "piper_tts");
+        private readonly string piperBaseDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TextToSpeechApp", "piper_tts");
         private string piperInstallationPath = string.Empty;
         private string piperExecutablePath = string.Empty;
         private string modelsCommonPath = string.Empty;
-        private Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
+
         private Dictionary<string, VoiceModel>? allVoicesList;
+        private readonly Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
 
         public Form1()
         {
             InitializeComponent();
-            this.Load += new System.EventHandler(this.Form1_Load);
-            this.cmbVoiceSelection.SelectedIndexChanged += new System.EventHandler(this.cmbVoiceSelection_SelectedIndexChanged);
 
-            // Placeholder for cmbSpeakerSelection initialization - user will add via Designer
-            this.cmbSpeakerSelection = new System.Windows.Forms.ComboBox();
-            this.lblSpeakerSelection = new System.Windows.Forms.Label(); 
-            // Actual properties will be set in Designer. Add basic ones here for now.
-            this.lblSpeakerSelection.Name = "lblSpeakerSelection";
-            this.lblSpeakerSelection.Text = "Speaker:";
-            this.lblSpeakerSelection.AutoSize = true; 
-            this.cmbSpeakerSelection.Name = "cmbSpeakerSelection";
-            this.cmbSpeakerSelection.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cmbSpeakerSelection.FormattingEnabled = true;
-            this.cmbSpeakerSelection.Visible = false; // Initially hidden
-            this.lblSpeakerSelection.Visible = false; // Initially hidden
-            // Add to Controls - User will position with Designer. For now, just add.
-            // this.Controls.Add(this.lblSpeakerSelection);
-            // this.Controls.Add(this.cmbSpeakerSelection);
-            // The above lines for adding to Controls are commented out as it's better done via designer.
-            // The subtask will focus on logic, user will handle exact placement and adding to Controls collection.
+            this.Load += new System.EventHandler(this.Form1_Load);
+            if (this.cmbVoiceSelection != null) this.cmbVoiceSelection.SelectedIndexChanged += new System.EventHandler(this.cmbVoiceSelection_SelectedIndexChanged);
+            if (this.cmbSpeakerSelection != null) this.cmbSpeakerSelection.SelectedIndexChanged += new System.EventHandler(this.cmbSpeakerSelection_SelectedIndexChanged);
+            if (this.cmbLanguageSelection != null) this.cmbLanguageSelection.SelectedIndexChanged += new System.EventHandler(this.cmbLanguageSelection_SelectedIndexChanged);
+        }
 
         private async void Form1_Load(object sender, EventArgs e)
         {
             this.UseWaitCursor = true;
-            lblStatus.Text = "Initializing TTS engine...";
+            SafeSetStatus("Initializing TTS engine...");
             Application.DoEvents();
 
             try
@@ -66,353 +47,406 @@ namespace TextToSpeechApp
                 modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
                 Directory.CreateDirectory(modelsCommonPath);
 
-                lblStatus.Text = "Checking for Piper executable...";
+                SafeSetStatus("Checking for Piper executable...");
                 Application.DoEvents();
                 if (!File.Exists(piperExecutablePath))
                 {
-                    lblStatus.Text = "Downloading Piper TTS...";
+                    SafeSetStatus("Downloading Piper TTS...");
                     Application.DoEvents();
-
                     Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
                     await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory));
-
                     if (!File.Exists(piperExecutablePath))
                     {
                         throw new FileNotFoundException("Piper executable not found after download and extraction.", piperExecutablePath);
                     }
-                    lblStatus.Text = "Piper executable downloaded and extracted.";
+                    SafeSetStatus("Piper executable downloaded and extracted.");
                     Application.DoEvents();
                 }
                 else
                 {
-                    lblStatus.Text = "Piper executable found.";
+                    SafeSetStatus("Piper executable found.");
                     Application.DoEvents();
                 }
 
-                lblStatus.Text = "Fetching available voices...";
+                SafeSetStatus("Fetching available voices...");
                 Application.DoEvents();
-                Dictionary<string, VoiceModel>? allVoicesList = null;
+                this.allVoicesList = null;
                 try
                 {
-                    allVoicesList = await PiperDownloader.GetHuggingFaceModelList();
+                    this.allVoicesList = await PiperDownloader.GetHuggingFaceModelList();
                 }
-                catch (Exception ex)
+                catch (Exception exVoiceList)
                 {
-                    MessageBox.Show($"Failed to fetch voice list: {ex.Message}", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    currentVoiceModel = null;
+                    MessageBox.Show($"Failed to fetch voice list: {exVoiceList.Message}. Please check your internet connection.", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
-                if (allVoicesList == null || allVoicesList.Count == 0)
+                if (this.allVoicesList == null || !this.allVoicesList.Any())
                 {
-                    if (currentVoiceModel == null)
-                    {
-                        MessageBox.Show("No voices found or could not load voice list.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    MessageBox.Show("No voices found or could not load voice list. Ensure internet connection for first run.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     currentVoiceModel = null;
+                    SafeControlSetVisibility(cmbLanguageSelection, false);
+                    SafeControlSetVisibility(lblLanguageSelection, false);
+                    SafeControlSetEnabled(btnStartConversion, false);
+                    SafeControlSetEnabled(cmbVoiceSelection, false);
                 }
                 else
                 {
-                    cmbVoiceSelection.Items.Clear();
-                    foreach (VoiceModel voice in allVoicesList.Values.OrderBy(v => v.Name))
-                    {
-                        cmbVoiceSelection.Items.Add(voice.Key); // TEMPORARY: Using Key for now
-                    }
-                    cmbVoiceSelection.DisplayMember = "DisplayName";
+                    var languages = this.allVoicesList.Values
+                        .Where(v => v.Language != null && !string.IsNullOrEmpty(v.Language.Name))
+                        .Select(v => v.Language!.Name)
+                        .Distinct()
+                        .OrderBy(langName => langName)
+                        .ToList();
 
-                    string preferredDefaultModelKey = "en_US-lessac-medium";
-                    VoiceModel? voiceToLoadAsDefault = allVoicesList.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
-
-                    if (voiceToLoadAsDefault == null && allVoicesList.Values.Any())
+                    if (cmbLanguageSelection != null)
                     {
-                        voiceToLoadAsDefault = allVoicesList.Values.OrderBy(v => v.Name).First();
-                    }
-
-                    if (voiceToLoadAsDefault != null)
-                    {
-                        currentVoiceModel = voiceToLoadAsDefault;
-                        if (currentVoiceModel != null)
+                        if (languages.Any())
                         {
-                            foreach (object item in cmbVoiceSelection.Items)
+                            SafeComboBoxClearAndAddRange(cmbLanguageSelection, languages.Cast<object>().ToArray());
+
+                            string preferredDefaultLanguage = "English";
+                            if (languages.Contains(preferredDefaultLanguage))
                             {
-                                if (item is VoiceViewModel viewModel && viewModel.Model.Key == currentVoiceModel.Key)
-                                {
-                                    cmbVoiceSelection.SelectedItem = viewModel;
-                                    break;
-                                }
+                                cmbLanguageSelection.SelectedItem = preferredDefaultLanguage;
                             }
-                        }
-
-                        lblStatus.Text = $"Loading default voice: {currentVoiceModel.Name}...";
-                        Application.DoEvents();
-
-                        var modelDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                        if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
-                        {
-                            lblStatus.Text = $"Downloading default voice: {currentVoiceModel.Name}...";
-                            Application.DoEvents();
-                            await currentVoiceModel.DownloadModel(modelsCommonPath);
-
-                            var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                            if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
+                            else if (cmbLanguageSelection.Items.Count > 0)
                             {
-                                throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}.");
+                                cmbLanguageSelection.SelectedIndex = 0;
                             }
-                            lblStatus.Text = $"Voice {currentVoiceModel.Name} downloaded.";
-                            Application.DoEvents();
+                            SafeControlSetVisibility(cmbLanguageSelection, true);
+                            SafeControlSetVisibility(lblLanguageSelection, true);
                         }
                         else
                         {
-                            lblStatus.Text = $"Loading voice {currentVoiceModel.Name} from disk...";
-                            Application.DoEvents();
-                            currentVoiceModel = await VoiceModel.LoadModel(modelDirectory);
+                            SafeControlSetVisibility(cmbLanguageSelection, false);
+                            SafeControlSetVisibility(lblLanguageSelection, false);
                         }
                     }
-                    else
-                    {
-                        currentVoiceModel = null;
-                        lblStatus.Text = "No suitable default voice found.";
-                        MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
-                }
 
-                UpdateSpeakerSelectionUI(currentVoiceModel);
-                await ReinitializePiperProvider();
+                    string? initialSelectedLanguage = cmbLanguageSelection?.SelectedItem?.ToString();
+                    await PopulateVoiceSelectionComboBox(initialSelectedLanguage);
+                }
             }
             catch (Exception ex)
             {
-                lblStatus.Text = $"Error initializing TTS: {ex.Message}";
-                MessageBox.Show($"Detailed Error: {ex.ToString()}", "TTS Initialization Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                btnStartConversion.Enabled = false;
-                cmbVoiceSelection.Enabled = false;
-                if (cmbSpeakerSelection != null) cmbSpeakerSelection.Enabled = false;
+                SafeSetStatus($"Error initializing TTS: {ex.Message}");
+                MessageBox.Show($"Detailed Error during initialization: {ex.ToString()}", "TTS Initialization Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                SafeControlSetEnabled(btnStartConversion, false);
+                SafeControlSetEnabled(cmbVoiceSelection, false);
+                SafeControlSetEnabled(cmbSpeakerSelection, false);
+                SafeControlSetEnabled(cmbLanguageSelection, false);
             }
             finally
             {
                 this.UseWaitCursor = false;
-                cmbVoiceSelection.Enabled = cmbVoiceSelection.Items.Count > 0;
+                if (cmbVoiceSelection != null) SafeControlSetEnabled(cmbVoiceSelection, cmbVoiceSelection.Items.Count > 0 && currentVoiceModel != null);
             }
         }
+
+        private async Task PopulateVoiceSelectionComboBox(string? selectedLanguage)
+        {
+            if (cmbVoiceSelection == null) return;
+
+            SafeComboBoxClear(cmbVoiceSelection);
+            currentVoiceModel = null;
+
+            if (this.allVoicesList == null || !this.allVoicesList.Any())
+            {
+                SafeSetStatus("No voices available to filter.");
+                UpdateSpeakerSelectionUI(null);
+                await ReinitializePiperProvider();
+                return;
+            }
+
+            string languageToFilter = selectedLanguage ?? "English";
+
+            var allAvailableRealLanguages = this.allVoicesList.Values
+                                     .Where(v => v.Language != null && !string.IsNullOrEmpty(v.Language.Name))
+                                     .Select(v => v.Language!.Name)
+                                     .Distinct().ToList();
+
+            if (!allAvailableRealLanguages.Contains(languageToFilter) && allAvailableRealLanguages.Any())
+            {
+                languageToFilter = allAvailableRealLanguages.OrderBy(l => l).First();
+                SafeComboBoxSetSelected(cmbLanguageSelection, languageToFilter);
+            }
+
+            var filteredVoices = this.allVoicesList.Values
+                .Where(v => v.Language != null && string.Equals(v.Language.Name, languageToFilter, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(v => v.Key)
+                .ToList();
+
+            if (!filteredVoices.Any() && allAvailableRealLanguages.Contains("English") && !string.Equals(languageToFilter, "English", StringComparison.OrdinalIgnoreCase))
+            {
+                languageToFilter = "English";
+                filteredVoices = this.allVoicesList.Values
+                    .Where(v => v.Language != null && string.Equals(v.Language.Name, languageToFilter, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(v => v.Key)
+                    .ToList();
+                SafeComboBoxSetSelected(cmbLanguageSelection, languageToFilter);
+            }
+            if (!filteredVoices.Any() && this.allVoicesList.Any())
+            {
+                filteredVoices = this.allVoicesList.Values.OrderBy(v => v.Key).ToList();
+            }
+
+            if (filteredVoices.Any())
+            {
+                SafeComboBoxClearAndAddRange(cmbVoiceSelection, filteredVoices.Select(v => new VoiceViewModel(v)).ToArray<object>());
+                cmbVoiceSelection.DisplayMember = "DisplayName";
+
+                string preferredDefaultModelKey = "en_US-lessac-medium";
+                VoiceViewModel? viewModelToSelect = null;
+
+                var defaultVoiceInList = filteredVoices.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
+                if (defaultVoiceInList != null)
+                {
+                    if (cmbVoiceSelection != null) viewModelToSelect = cmbVoiceSelection.Items.OfType<VoiceViewModel>().FirstOrDefault(vm => vm.Model.Key == defaultVoiceInList.Key);
+                }
+
+                if (viewModelToSelect == null && cmbVoiceSelection != null && cmbVoiceSelection.Items.Count > 0)
+                {
+                    viewModelToSelect = (VoiceViewModel)cmbVoiceSelection.Items[0];
+                }
+
+                if (viewModelToSelect != null)
+                {
+                    if (cmbVoiceSelection != null) cmbVoiceSelection.SelectedItem = viewModelToSelect;
+                    VoiceModel tempModelForLoading = viewModelToSelect.Model;
+
+                    SafeSetStatus($"Loading voice for {languageToFilter}: {tempModelForLoading.Name ?? tempModelForLoading.Key}...");
+                    Application.DoEvents();
+
+                    var modelDirectory = Path.Combine(modelsCommonPath, tempModelForLoading.Key);
+                    if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
+                    {
+                        SafeSetStatus($"Downloading voice: {tempModelForLoading.Name ?? tempModelForLoading.Key}...");
+                        Application.DoEvents();
+                        await tempModelForLoading.DownloadModel(modelsCommonPath);
+                        var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, tempModelForLoading.Key);
+                        if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
+                        {
+                            throw new Exception($"Failed to download/verify voice model: {tempModelForLoading.Key}. File not found: {Path.Combine(expectedModelSpecificDirectory, "model.json")}");
+                        }
+                        SafeSetStatus($"Voice {tempModelForLoading.Name ?? tempModelForLoading.Key} downloaded.");
+                        Application.DoEvents();
+                    }
+
+                    currentVoiceModel = await VoiceModel.LoadModel(Path.Combine(modelsCommonPath, tempModelForLoading.Key));
+                    if (currentVoiceModel == null)
+                    {
+                        throw new Exception($"Failed to load model {tempModelForLoading.Key} from disk.");
+                    }
+                    SafeSetStatus($"Voice {currentVoiceModel.Name ?? currentVoiceModel.Key} loaded from disk.");
+                    Application.DoEvents();
+                }
+                else
+                {
+                    currentVoiceModel = null;
+                    SafeSetStatus($"No voices available for language: {languageToFilter}.");
+                }
+            }
+            else
+            {
+                currentVoiceModel = null;
+                SafeSetStatus("No voices found for selected criteria.");
+            }
+
+            if (cmbVoiceSelection != null) SafeControlSetEnabled(cmbVoiceSelection, cmbVoiceSelection.Items.Count > 0);
+            UpdateSpeakerSelectionUI(currentVoiceModel);
+            await ReinitializePiperProvider();
+        }
+
         private void UpdateSpeakerSelectionUI(VoiceModel? voice)
         {
-            cmbSpeakerSelection.Items.Clear();
+            if (cmbSpeakerSelection == null || lblSpeakerSelection == null || currentSpeakerMap == null) return;
+
+            SafeComboBoxClear(cmbSpeakerSelection);
             currentSpeakerMap.Clear();
-            cmbSpeakerSelection.Visible = false;
-            lblSpeakerSelection.Visible = false;
+            SafeControlSetVisibility(cmbSpeakerSelection, false);
+            SafeControlSetVisibility(lblSpeakerSelection, false);
 
             if (voice != null && voice.NumSpeakers > 0 && voice.SpeakerIdMap != null && voice.SpeakerIdMap.Any())
             {
+                var speakerItems = new List<object>();
                 foreach (var speakerEntry in voice.SpeakerIdMap.OrderBy(kvp => kvp.Value))
                 {
                     uint speakerId = Convert.ToUInt32(speakerEntry.Value);
                     currentSpeakerMap[speakerEntry.Key] = speakerId;
-                    cmbSpeakerSelection.Items.Add(speakerEntry.Key);
+                    speakerItems.Add(speakerEntry.Key);
                 }
+                SafeComboBoxClearAndAddRange(cmbSpeakerSelection, speakerItems.ToArray());
 
                 if (cmbSpeakerSelection.Items.Count > 0)
                 {
                     cmbSpeakerSelection.SelectedIndex = 0;
-                    lblSpeakerSelection.Visible = true;
-                    cmbSpeakerSelection.Visible = true;
+                    SafeControlSetVisibility(lblSpeakerSelection, true);
+                    SafeControlSetVisibility(cmbSpeakerSelection, true);
                 }
             }
         }
-
 
         private async Task ReinitializePiperProvider()
         {
             if (currentVoiceModel == null)
             {
                 piperProvider = null;
-                btnStartConversion.Enabled = false;
-                lblStatus.Text = "TTS Engine not ready: No voice loaded.";
+                SafeControlSetEnabled(btnStartConversion, false);
+                SafeSetStatus("TTS Engine not ready: No voice loaded.");
                 return;
             }
 
             this.UseWaitCursor = true;
-            lblStatus.Text = "Initializing TTS engine...";
+            SafeControlSetEnabled(btnStartConversion, false);
+            SafeSetStatus($"Configuring TTS for voice '{currentVoiceModel.Name ?? currentVoiceModel.Key}'...");
             Application.DoEvents();
 
             try
             {
-                Directory.CreateDirectory(piperBaseDirectory);
-                piperInstallationPath = Path.Combine(piperBaseDirectory, "piper");
-                piperExecutablePath = Path.Combine(piperInstallationPath, PiperDownloader.PiperExecutable); // Use PiperDownloader.PiperExecutable
-                modelsCommonPath = Path.Combine(piperBaseDirectory, "models");
-                Directory.CreateDirectory(modelsCommonPath);
-
-                lblStatus.Text = "Checking for Piper executable...";
-                Application.DoEvents();
-                if (!File.Exists(piperExecutablePath))
+                uint selectedSpeakerId = 0;
+                if (cmbSpeakerSelection != null && cmbSpeakerSelection.Visible && cmbSpeakerSelection.SelectedItem != null && cmbSpeakerSelection.Items.Count > 0)
                 {
-                    // Directory.CreateDirectory(piperInstallationPath); // piperBaseDirectory is passed to ExtractPiper which should handle subfolder creation
-                    lblStatus.Text = "Downloading Piper TTS...";
-                    Application.DoEvents();
-
-                    Stream piperDownloadStream = await PiperDownloader.DownloadPiper();
-                    await Task.Run(() => piperDownloadStream.ExtractPiper(piperBaseDirectory));
-
-                    if (!File.Exists(piperExecutablePath))
+                    string? selectedSpeakerKey = cmbSpeakerSelection.SelectedItem.ToString();
+                    if (selectedSpeakerKey != null && currentSpeakerMap.ContainsKey(selectedSpeakerKey))
                     {
-                        throw new FileNotFoundException("Piper executable not found after download and extraction.", piperExecutablePath);
-                    }
-                    lblStatus.Text = "Piper executable downloaded and extracted.";
-                    Application.DoEvents();
-                }
-                else
-                {
-                    lblStatus.Text = "Piper executable found.";
-                    Application.DoEvents();
-                }
-
-                lblStatus.Text = "Fetching available voices...";
-                Application.DoEvents();
-                Dictionary<string, VoiceModel>? allVoicesList = null;
-                try
-                {
-                    allVoicesList = await PiperDownloader.GetHuggingFaceModelList();
-                }
-                catch (Exception exVoiceList) // Renamed ex to exVoiceList for clarity
-                {
-                    MessageBox.Show($"Failed to fetch voice list: {exVoiceList.Message}", "Voice List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    currentVoiceModel = null;
-                }
-
-                if (allVoicesList == null || allVoicesList.Count == 0)
-                {
-                    if (currentVoiceModel == null)
-                    { // Only show message if the try-catch also failed
-                        MessageBox.Show("No voices found or could not load voice list.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    currentVoiceModel = null;
-                }
-                else
-                {
-                    // --- START: New logic for Language ComboBox ---
-                    var languages = allVoicesList.Values
-                        .Select(v => v.Language?.NameEnglish)
-                        .Where(langName => !string.IsNullOrEmpty(langName))
-                        .Distinct()
-                        .OrderBy(langName => langName)
-                        .ToList();
-
-                    cmbLanguageSelection.Items.Clear();
-                    if (languages.Any())
-                    {
-                        foreach (string langName in languages)
-                        {
-                            cmbLanguageSelection.Items.Add(langName);
-                        }
-
-                        string preferredDefaultLanguage = "English";
-                        if (languages.Contains(preferredDefaultLanguage))
-                        {
-                            cmbLanguageSelection.SelectedItem = preferredDefaultLanguage;
-                        }
-                        else
-                        {
-                            cmbLanguageSelection.SelectedIndex = 0;
-                        }
-                        cmbLanguageSelection.Visible = true;
-                        lblLanguageSelection.Visible = true;
-                    }
-                    else
-                    {
-                        cmbLanguageSelection.Visible = false;
-                        lblLanguageSelection.Visible = false;
-                    }
-                    // --- END: New logic for Language ComboBox ---
-                    cmbVoiceSelection.Items.Clear();
-                    // Ensure VoiceModel has a Name property suitable for display, or use Key.
-                    // Adding the VoiceModel object directly to Items is good.
-                    foreach (VoiceModel voice in allVoicesList.Values.OrderBy(v => v.Key))
-                    {
-                        cmbVoiceSelection.Items.Add(new VoiceViewModel(voice));
-                    }
-                    cmbVoiceSelection.DisplayMember = "Name";
-
-                    string preferredDefaultModelKey = "en_US-lessac-medium";
-                    VoiceModel? voiceToLoadAsDefault = allVoicesList.Values.FirstOrDefault(v => v.Key == preferredDefaultModelKey);
-
-                    if (voiceToLoadAsDefault == null && allVoicesList.Values.Any())
-                    {
-                        voiceToLoadAsDefault = allVoicesList.Values.OrderBy(v => v.Name).First();
-                    }
-
-                    string preferredDefaultLanguage = "English"; // Or get from config, etc.
-                    if (languages.Contains(preferredDefaultLanguage))
-                    {
-                        // Set currentVoiceModel to the one we intend to load as default.
-                        // This assignment is crucial before it's used by the load/download logic.
-                        currentVoiceModel = voiceToLoadAsDefault;
-                        cmbVoiceSelection.SelectedItem = currentVoiceModel; // Set dropdown selection
-
-                        lblStatus.Text = $"Loading default voice: {currentVoiceModel.Name}...";
-                        Application.DoEvents();
-
-                        var modelDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                        if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
-                        {
-                            lblStatus.Text = $"Downloading default voice: {currentVoiceModel.Name}...";
-                            Application.DoEvents();
-                            await currentVoiceModel.DownloadModel(modelsCommonPath);
-
-                            var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, currentVoiceModel.Key);
-                            if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
-                            {
-                                throw new Exception($"Failed to download voice model files for: {currentVoiceModel.Key}. Expected model.json at {Path.Combine(expectedModelSpecificDirectory, "model.json")}");
-                            }
-                            lblStatus.Text = $"Voice {currentVoiceModel.Name} downloaded.";
-                            Application.DoEvents();
-                        }
-                        else
-                        {
-                            lblStatus.Text = $"Loading voice {currentVoiceModel.Name} from disk...";
-                            Application.DoEvents();
-                            // LoadModel returns a new, fully initialized VoiceModel instance.
-                            currentVoiceModel = await VoiceModel.LoadModel(modelDirectory);
-                        }
-                    }
-                    else
-                    {
-                        currentVoiceModel = null;
-                        lblStatus.Text = "No suitable default voice found.";
-                        MessageBox.Show("No voices could be loaded as default.", "Voice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        selectedSpeakerId = currentSpeakerMap[selectedSpeakerKey];
                     }
                 }
-                // else for (allVoicesList == null || allVoicesList.Count == 0)
-                // {
-                //     // This part remains, if allVoicesList is null/empty, PopulateVoiceSelectionComboBox will handle it.
-                //     // UpdateSpeakerSelectionUI(null); // This was here but is effectively handled by Populate...
-                // }
 
-                // Initialize PiperProvider only if a voice was successfully loaded/selected
-                if (currentVoiceModel != null)
+                PiperConfiguration newConfig = new PiperConfiguration()
                 {
-                    lblStatus.Text = "Initializing PiperProvider...";
-                    Application.DoEvents();
-                    PiperConfiguration config = new PiperConfiguration()
-                    {
-                        ExecutableLocation = piperExecutablePath,
-                        WorkingDirectory = piperInstallationPath,
-                        Model = currentVoiceModel
-                    };
-                    piperProvider = new PiperProvider(config);
-                    lblStatus.Text = "TTS Engine Ready.";
-                }
-                else
-                {
-                    lblStatus.Text = "TTS Engine not ready: No voice loaded.";
-                    btnStartConversion.Enabled = false; // Disable conversion if no voice
-                }
+                    ExecutableLocation = piperExecutablePath,
+                    WorkingDirectory = piperInstallationPath,
+                    Model = currentVoiceModel,
+                    SpeakerId = selectedSpeakerId
+                };
+                piperProvider = new PiperProvider(newConfig);
+                string speakerInfo = (cmbSpeakerSelection != null && cmbSpeakerSelection.Visible && cmbSpeakerSelection.SelectedItem != null ? $" (Speaker: {cmbSpeakerSelection.SelectedItem})" : "");
+                SafeSetStatus($"TTS Engine ready with voice '{currentVoiceModel.Name ?? currentVoiceModel.Key}'{speakerInfo}.");
             }
-            catch (Exception ex) // This is the main catch block for Form1_Load
+            catch (Exception ex)
             {
-                lblStatus.Text = $"Error initializing TTS: {ex.Message}";
-                MessageBox.Show($"Detailed Error: {ex.ToString()}", "TTS Initialization Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                SafeSetStatus($"Error initializing PiperProvider: {ex.Message}");
+                MessageBox.Show($"Error setting up TTS: {ex.ToString()}", "TTS Config Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                piperProvider = null;
             }
             finally
             {
                 this.UseWaitCursor = false;
+                SafeControlSetEnabled(btnStartConversion, piperProvider != null);
+            }
+        }
+
+        private async void cmbVoiceSelection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cmbVoiceSelection == null || lblStatus == null || btnStartConversion == null) return;
+
+            if (cmbVoiceSelection.SelectedItem is VoiceViewModel selectedViewModel)
+            {
+                VoiceModel selectedVoice = selectedViewModel.Model;
+                if (currentVoiceModel != null && currentVoiceModel.Key == selectedVoice.Key && piperProvider != null)
+                {
+                    SafeSetStatus($"Voice '{selectedVoice.Name ?? selectedVoice.Key}' is already active.");
+                    UpdateSpeakerSelectionUI(currentVoiceModel);
+                    await ReinitializePiperProvider();
+                    return;
+                }
+
+                this.UseWaitCursor = true;
+                SafeControlSetEnabled(btnStartConversion, false);
+                SafeControlSetEnabled(cmbLanguageSelection, false);
+                SafeControlSetEnabled(cmbSpeakerSelection, false);
+
+                SafeSetStatus($"Loading voice '{selectedVoice.Name ?? selectedVoice.Key}'...");
+                Application.DoEvents();
+
+                try
+                {
+                    var modelDirectory = Path.Combine(modelsCommonPath, selectedVoice.Key);
+                    if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
+                    {
+                        SafeSetStatus($"Downloading voice: {selectedVoice.Name ?? selectedVoice.Key}...");
+                        Application.DoEvents();
+                        await selectedVoice.DownloadModel(modelsCommonPath);
+                        var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, selectedVoice.Key);
+                        if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
+                        {
+                            throw new Exception($"Failed to download/verify voice model: {selectedVoice.Key}. File not found: {Path.Combine(expectedModelSpecificDirectory, "model.json")}");
+                        }
+                        SafeSetStatus($"Voice {selectedVoice.Name ?? selectedVoice.Key} downloaded.");
+                        Application.DoEvents();
+                    }
+
+                    currentVoiceModel = await VoiceModel.LoadModel(Path.Combine(modelsCommonPath, selectedVoice.Key));
+                    if (currentVoiceModel == null)
+                    {
+                        throw new Exception($"Could not load {selectedVoice.Name ?? selectedVoice.Key} after ensuring it is local.");
+                    }
+                    SafeSetStatus($"Voice {currentVoiceModel.Name ?? currentVoiceModel.Key} loaded.");
+                    Application.DoEvents();
+
+                    UpdateSpeakerSelectionUI(currentVoiceModel);
+                    await ReinitializePiperProvider();
+                }
+                catch (Exception ex)
+                {
+                    SafeSetStatus($"Error loading voice '{selectedVoice.Name ?? selectedVoice.Key}': {ex.Message}");
+                    MessageBox.Show($"Failed to load selected voice: {ex.ToString()}", "Voice Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    currentVoiceModel = null;
+                    piperProvider = null;
+                    UpdateSpeakerSelectionUI(null);
+                }
+                finally
+                {
+                    this.UseWaitCursor = false;
+                    SafeControlSetEnabled(btnStartConversion, piperProvider != null);
+                    SafeControlSetEnabled(cmbLanguageSelection, true);
+                    if (cmbSpeakerSelection != null) SafeControlSetEnabled(cmbSpeakerSelection, cmbSpeakerSelection.Items.Count > 0 && piperProvider != null);
+                }
+            }
+        }
+
+        private async void cmbLanguageSelection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cmbLanguageSelection == null || lblStatus == null || cmbVoiceSelection == null || btnStartConversion == null) return;
+
+            if (cmbLanguageSelection.SelectedItem is string selectedLanguage)
+            {
+                SafeSetStatus($"Switching to language: {selectedLanguage}...");
+                Application.DoEvents();
+
+                SafeControlSetEnabled(cmbVoiceSelection, false);
+                SafeControlSetVisibility(cmbSpeakerSelection, false);
+                SafeControlSetVisibility(lblSpeakerSelection, false);
+                SafeControlSetEnabled(btnStartConversion, false);
+                this.UseWaitCursor = true;
+
+                await PopulateVoiceSelectionComboBox(selectedLanguage);
+
+                SafeControlSetEnabled(cmbVoiceSelection, cmbVoiceSelection.Items.Count > 0);
+                SafeControlSetEnabled(btnStartConversion, piperProvider != null);
+                this.UseWaitCursor = false;
+
+                if (piperProvider != null && currentVoiceModel != null)
+                {
+                    SafeSetStatus($"Ready for language: {selectedLanguage}. Voice '{currentVoiceModel.Name ?? currentVoiceModel.Key}' loaded.");
+                }
+                else if (cmbVoiceSelection.Items.Count == 0)
+                {
+                    SafeSetStatus($"No voices found for language: {selectedLanguage}.");
+                }
+                else
+                {
+                    SafeSetStatus($"Language {selectedLanguage} selected, but no voice loaded for TTS.");
+                }
+            }
+        }
+
+        private async void cmbSpeakerSelection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (currentVoiceModel != null && cmbSpeakerSelection != null && cmbSpeakerSelection.SelectedItem != null)
+            {
+                await ReinitializePiperProvider();
             }
         }
 
@@ -425,12 +459,12 @@ namespace TextToSpeechApp
                 {
                     try
                     {
-                        txtEditor.Text = File.ReadAllText(openFileDialog.FileName);
-                        lblStatus.Text = $"File loaded: {Path.GetFileName(openFileDialog.FileName)}";
+                        if (txtEditor != null) txtEditor.Text = File.ReadAllText(openFileDialog.FileName);
+                        SafeSetStatus($"File loaded: {Path.GetFileName(openFileDialog.FileName)}");
                     }
                     catch (Exception ex)
                     {
-                        lblStatus.Text = "Error reading file.";
+                        SafeSetStatus("Error reading file.");
                         MessageBox.Show($"Error: Could not read file from disk. Original error: {ex.Message}", "File Read Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
@@ -444,15 +478,15 @@ namespace TextToSpeechApp
                 if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
                 {
                     selectedOutputPath = folderBrowserDialog.SelectedPath;
-                    lblSelectedFolder.Text = $"Output Folder: {selectedOutputPath}";
-                    lblStatus.Text = "Output folder selected.";
+                    if (lblSelectedFolder != null) lblSelectedFolder.Text = $"Output Folder: {selectedOutputPath}";
+                    SafeSetStatus("Output folder selected.");
                 }
             }
         }
 
         private string[] GetTextLinesForConversion()
         {
-            if (string.IsNullOrWhiteSpace(txtEditor.Text))
+            if (txtEditor == null || string.IsNullOrWhiteSpace(txtEditor.Text))
             {
                 return Array.Empty<string>();
             }
@@ -463,31 +497,31 @@ namespace TextToSpeechApp
 
         private async void btnStartConversion_Click(object sender, EventArgs e)
         {
-            if (piperProvider == null || cmbVoiceSelection.SelectedItem == null)
+            if (piperProvider == null || cmbVoiceSelection == null || cmbVoiceSelection.SelectedItem == null)
             {
                 MessageBox.Show("TTS engine is not ready or no voice is selected.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblStatus.Text = "Error: TTS not ready or no voice selected.";
+                SafeSetStatus("Error: TTS not ready or no voice selected.");
                 return;
             }
 
             if (string.IsNullOrEmpty(selectedOutputPath))
             {
                 MessageBox.Show("Please select an output folder first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                lblStatus.Text = "Error: Output folder not selected.";
+                SafeSetStatus("Error: Output folder not selected.");
                 return;
             }
 
             string[] lines = GetTextLinesForConversion();
             if (lines.Length == 0)
             {
-                lblStatus.Text = "Nothing to convert.";
+                SafeSetStatus("Nothing to convert.");
                 MessageBox.Show("The text box is empty or contains only whitespace.", "No Text", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             this.UseWaitCursor = true;
-            btnStartConversion.Enabled = false;
-            lblStatus.Text = "Starting conversion...";
+            SafeControlSetEnabled(btnStartConversion, false);
+            SafeSetStatus("Starting conversion...");
             Application.DoEvents();
 
             int successCount = 0;
@@ -497,7 +531,7 @@ namespace TextToSpeechApp
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                lblStatus.Text = $"Converting line {i + 1} of {lines.Length}: "{line.Substring(0, Math.Min(line.Length, 20)) + "..."}"";
+                SafeSetStatus($"Converting line {i + 1} of {lines.Length}: \"{line.Substring(0, Math.Min(line.Length, 20)) + "..."}\"");
                 Application.DoEvents();
 
                 try
@@ -525,18 +559,18 @@ namespace TextToSpeechApp
             }
 
             this.UseWaitCursor = false;
-            btnStartConversion.Enabled = true;
+            SafeControlSetEnabled(btnStartConversion, true);
 
             string summaryMessage = $"{successCount} line(s) converted successfully.";
             if (errorCount > 0)
             {
                 summaryMessage += $"\n{errorCount} line(s) failed.";
-                lblStatus.Text = "Conversion complete with errors.";
+                SafeSetStatus("Conversion complete with errors.");
                 MessageBox.Show(summaryMessage + "\n\nError Details:\n" + errorDetails.ToString(), "Conversion Finished with Errors", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
-                lblStatus.Text = "Conversion complete.";
+                SafeSetStatus("Conversion complete.");
                 MessageBox.Show(summaryMessage, "Conversion Finished", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
@@ -565,90 +599,47 @@ namespace TextToSpeechApp
             return $"{sanitized}.mp3";
         }
 
-        private async void cmbVoiceSelection_SelectedIndexChanged(object sender, EventArgs e)
+        // Helper methods for safe UI updates 
+        private void SafeSetStatus(string text)
         {
-            if (cmbVoiceSelection.SelectedItem is VoiceViewModel selectedViewModel) // Changed to VoiceViewModel
-            {
-                VoiceModel selectedVoice = selectedViewModel.Model; // Get the actual VoiceModel
-
-                if (selectedVoice == currentVoiceModel && piperProvider != null)
-                {
-                    // No change, or already loaded
-                    lblStatus.Text = $"Voice '{selectedVoice.Name}' is already active.";
-                    return;
-                }
-
-                this.UseWaitCursor = true;
-                btnStartConversion.Enabled = false;
-                lblStatus.Text = $"Loading voice '{selectedVoice.Name}'...";
-                Application.DoEvents();
-
-                try
-                {
-                    var modelDirectory = Path.Combine(modelsCommonPath, selectedVoice.Key);
-                    if (!Directory.Exists(modelDirectory) || !File.Exists(Path.Combine(modelDirectory, "model.json")))
-                    {
-                        lblStatus.Text = $"Downloading voice: {selectedVoice.Name}...";
-                        Application.DoEvents();
-                        // The DownloadModel method on the VoiceModel instance should handle its own metadata
-                        await selectedVoice.DownloadModel(modelsCommonPath);
-
-                        var expectedModelSpecificDirectory = Path.Combine(modelsCommonPath, selectedVoice.Key);
-                        if (!File.Exists(Path.Combine(expectedModelSpecificDirectory, "model.json")))
-                        {
-                            throw new Exception($"Failed to download voice model files for: {selectedVoice.Key}.");
-                        }
-                        lblStatus.Text = $"Voice {selectedVoice.Name} downloaded.";
-                        Application.DoEvents();
-                    }
-                    else
-                    {
-                        lblStatus.Text = $"Loading voice {selectedVoice.Name} from disk...";
-                        Application.DoEvents();
-                        // Ensure we're using a fully loaded model instance, LoadModel gives a fresh one.
-                        // selectedVoice might be from the list, not necessarily fully loaded for PiperConfig.
-                    }
-
-                    // Regardless of download, ensure it's loaded into a fresh variable for PiperConfig
-                    // This ensures that properties like ModelLocation are correctly set from a full load.
-                    VoiceModel fullyLoadedSelectedVoice = await VoiceModel.LoadModel(Path.Combine(modelsCommonPath, selectedVoice.Key));
-                    if (fullyLoadedSelectedVoice == null)
-                    {
-                        throw new Exception($"Could not load {selectedVoice.Name} after ensuring it is local.");
-                    }
-
-                    currentVoiceModel = fullyLoadedSelectedVoice; // Update the global currentVoiceModel
-
-                    PiperConfiguration newConfig = new PiperConfiguration()
-                    {
-                        ExecutableLocation = piperExecutablePath,
-                        WorkingDirectory = piperInstallationPath,
-                        Model = currentVoiceModel
-                    };
-                    piperProvider = new PiperProvider(newConfig); // Re-initialize provider
-
-                    lblStatus.Text = $"Voice '{currentVoiceModel.Name}' is ready.";
-                }
-                catch (Exception ex)
-                {
-                    lblStatus.Text = $"Error loading voice '{selectedVoice.Name}': {ex.Message}";
-                    MessageBox.Show($"Failed to load selected voice: {ex.ToString()}", "Voice Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    // Optionally, try to revert to a previous valid voice or disable TTS
-                    btnStartConversion.Enabled = false; // Keep it disabled if voice load failed
-                    currentVoiceModel = null; // No valid model
-                    piperProvider = null; // No provider
-                }
-                finally
-                {
-                    this.UseWaitCursor = false;
-                    // Enable conversion only if a provider exists (voice loaded successfully)
-                    btnStartConversion.Enabled = (piperProvider != null); 
-                }
-            }
+            if (lblStatus == null) return;
+            if (lblStatus.InvokeRequired) lblStatus.Invoke(new Action(() => lblStatus.Text = text));
+            else lblStatus.Text = text;
         }
-        public override string ToString()
+
+        private void SafeControlSetEnabled(Control? ctl, bool enabled)
         {
-            return Name; // Display name in ComboBox
+            if (ctl == null) return;
+            if (ctl.InvokeRequired) ctl.Invoke(new Action(() => ctl.Enabled = enabled));
+            else ctl.Enabled = enabled;
+        }
+
+        private void SafeControlSetVisibility(Control? ctl, bool visible)
+        {
+            if (ctl == null) return;
+            if (ctl.InvokeRequired) ctl.Invoke(new Action(() => ctl.Visible = visible));
+            else ctl.Visible = visible;
+        }
+
+        private void SafeComboBoxClear(ComboBox? cmb)
+        {
+            if (cmb == null) return;
+            if (cmb.InvokeRequired) cmb.Invoke(new Action(() => cmb.Items.Clear()));
+            else cmb.Items.Clear();
+        }
+
+        private void SafeComboBoxClearAndAddRange(ComboBox? cmb, object[] items)
+        {
+            if (cmb == null) return;
+            if (cmb.InvokeRequired) cmb.Invoke(new Action(() => { cmb.Items.Clear(); cmb.Items.AddRange(items); }));
+            else { cmb.Items.Clear(); cmb.Items.AddRange(items); }
+        }
+
+        private void SafeComboBoxSetSelected(ComboBox? cmb, object? item)
+        {
+            if (cmb == null) return;
+            if (cmb.InvokeRequired) cmb.Invoke(new Action(() => cmb.SelectedItem = item));
+            else cmb.SelectedItem = item;
         }
     }
-}//             btnSelectFolder.Size = new Size(120, 23);
+}

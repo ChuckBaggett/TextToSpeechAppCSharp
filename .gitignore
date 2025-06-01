@@ -42,3 +42,6 @@ piper_tts/
 *.vsix
 *.log
 *.tlog
+/TextToSpeechApp/Form1 - backup of old version.cs
+/TextToSpeechApp/Form1 - backup of original clean slate version .cs
+/TextToSpeechApp/Form1-copy.cs

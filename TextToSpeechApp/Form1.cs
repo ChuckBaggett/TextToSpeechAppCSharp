@@ -22,6 +22,7 @@ namespace TextToSpeechApp
 
         private Dictionary<string, VoiceModel>? allVoicesList;
         private readonly Dictionary<string, uint> currentSpeakerMap = new Dictionary<string, uint>();
+        private System.Media.SoundPlayer? soundPlayer;
 
         public Form1()
         {
@@ -254,6 +255,11 @@ namespace TextToSpeechApp
 
             if (cmbVoiceSelection != null) SafeControlSetEnabled(cmbVoiceSelection, cmbVoiceSelection.Items.Count > 0);
             UpdateSpeakerSelectionUI(currentVoiceModel);
+            if (btnPlaySample != null && cmbVoiceSelection.SelectedItem is VoiceViewModel selectedVoice)
+            {
+                bool isEnglishVoice = selectedVoice.Model.Language.Family.Equals("en", StringComparison.InvariantCultureIgnoreCase);
+                SafeControlSetEnabled(btnPlaySample, isEnglishVoice);
+            }
             await ReinitializePiperProvider();
         }
 
@@ -402,6 +408,12 @@ namespace TextToSpeechApp
                     SafeControlSetEnabled(btnStartConversion, piperProvider != null);
                     SafeControlSetEnabled(cmbLanguageSelection, true);
                     if (cmbSpeakerSelection != null) SafeControlSetEnabled(cmbSpeakerSelection, cmbSpeakerSelection.Items.Count > 0 && piperProvider != null);
+                
+                    if (btnPlaySample != null)
+                    {
+                        bool isEnglishVoice = selectedViewModel.Model.Language.Family.Equals("en", StringComparison.InvariantCultureIgnoreCase);
+                        SafeControlSetEnabled(btnPlaySample, isEnglishVoice);
+                    }
                 }
             }
         }
@@ -447,6 +459,43 @@ namespace TextToSpeechApp
             if (currentVoiceModel != null && cmbSpeakerSelection != null && cmbSpeakerSelection.SelectedItem != null)
             {
                 await ReinitializePiperProvider();
+            }
+        }
+
+        private void btnPlaySample_Click(object sender, EventArgs e)
+        {
+            if (cmbVoiceSelection.SelectedItem is VoiceViewModel selectedVoice)
+            {
+                try
+                {
+                    if (soundPlayer != null)
+                    {
+                        soundPlayer.Stop();
+                        soundPlayer.Dispose();
+                        soundPlayer = null;
+                    }
+
+                    string voiceKey = selectedVoice.Model.Key;
+                    var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    var resourceName = $"TextToSpeechApp.Samples.{voiceKey}.wav";
+
+                    using (Stream? stream = assembly.GetManifestResourceStream(resourceName))
+                    {
+                        if (stream != null)
+                        {
+                            soundPlayer = new System.Media.SoundPlayer(stream);
+                            soundPlayer.Play();
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Sample not found for voice: {voiceKey}", "Sample Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error playing sample: {ex.Message}", "Playback Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 

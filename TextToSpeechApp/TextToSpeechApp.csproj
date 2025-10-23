@@ -23,4 +23,14 @@
     <Content Include="app.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Samples\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Samples\*" />
+  </ItemGroup>
+  
 </Project>

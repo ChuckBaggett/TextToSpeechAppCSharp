@@ -14,6 +14,7 @@ namespace TextToSpeechApp
         private System.Windows.Forms.ComboBox cmbSpeakerSelection;
         private System.Windows.Forms.Label lblLanguageSelection;
         private System.Windows.Forms.ComboBox cmbLanguageSelection;
+        private System.Windows.Forms.Button btnPlaySample;
 
         protected override void Dispose(bool disposing)
         {
@@ -37,6 +38,7 @@ namespace TextToSpeechApp
             cmbSpeakerSelection = new ComboBox();
             lblLanguageSelection = new Label();
             cmbLanguageSelection = new ComboBox();
+            btnPlaySample = new Button();
             SuspendLayout();
             // 
             // btnSelectFile
@@ -134,6 +136,17 @@ namespace TextToSpeechApp
             cmbSpeakerSelection.TabIndex = 8;
             cmbSpeakerSelection.Visible = false;
             // 
+            // btnPlaySample
+            // 
+            btnPlaySample.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnPlaySample.Location = new Point(352, 513);
+            btnPlaySample.Name = "btnPlaySample";
+            btnPlaySample.Size = new Size(42, 23);
+            btnPlaySample.TabIndex = 11;
+            btnPlaySample.Text = "Play";
+            btnPlaySample.UseVisualStyleBackColor = true;
+            btnPlaySample.Click += btnPlaySample_Click;
+            // 
             // lblLanguageSelection
             // 
             lblLanguageSelection.AutoSize = true;
@@ -160,6 +173,7 @@ namespace TextToSpeechApp
             Controls.Add(cmbLanguageSelection);
             Controls.Add(lblLanguageSelection);
             Controls.Add(cmbSpeakerSelection);
+            Controls.Add(btnPlaySample);
             Controls.Add(lblSpeakerSelection);
             Controls.Add(lblStatus);
             Controls.Add(btnStartConversion);
